@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS build
+FROM python:3.14-slim AS build
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_DEFAULT_TIMEOUT=120
 WORKDIR /build
 COPY pyproject.toml requirements.lock LICENSE ./
@@ -6,7 +6,7 @@ RUN pip install --upgrade "pip>=26.2" && pip wheel --wheel-dir /wheels --require
 COPY app ./app
 RUN pip wheel --wheel-dir /wheels --no-deps .
 
-FROM python:3.12-slim AS production
+FROM python:3.14-slim AS production
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DEFAULT_TIMEOUT=120
 WORKDIR /app
 RUN pip install --upgrade "pip>=26.2"
