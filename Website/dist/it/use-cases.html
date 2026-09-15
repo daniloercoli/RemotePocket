@@ -1,0 +1,211 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Ho creato RemotePocket per aiutare i miei genitori con il telefono. Scopri i casi d’uso dell’assistenza remota Android, dalla famiglia al lavoro e ai test delle app.">
+    <meta name="theme-color" content="#f3f8ff">
+    <title>Casi d’uso — RemotePocket</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23275fc4'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='Arial,sans-serif' font-size='31' font-weight='700' letter-spacing='-2' fill='%23ffffff'%3ERP%3C/text%3E%3C/svg%3E">
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Vai al contenuto</a>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="index.html" aria-label="Home di RemotePocket">
+          <span class="brand-mark" aria-hidden="true">rp</span>
+          <span>RemotePocket</span>
+        </a>
+        <nav class="primary-navigation" aria-label="Navigazione principale">
+          <a href="index.html">Home</a>
+          <a href="use-cases.html" aria-current="page">Casi d’uso</a>
+          <a href="index.html#open-source">Open source</a>
+          <a href="index.html#contact">Contatti</a>
+          <a class="app-link" href="https://app.remotepocket.ercoliconsulting.eu/">Accedi <span aria-hidden="true">↗</span></a>
+        </nav>
+        <nav class="language-switch" aria-label="Lingua">
+          <a href="../use-cases.html" lang="en" hreflang="en" aria-label="English" title="English"><span aria-hidden="true"><svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="48" fill="#00247d"/><path d="M0 0L64 48M64 0L0 48" stroke="#fff" stroke-width="8"/><path d="M0 0L64 48M64 0L0 48" stroke="#cf142b" stroke-width="4"/><path d="M32 0v48M0 24h64" stroke="#fff" stroke-width="8"/><path d="M32 0v48M0 24h64" stroke="#cf142b" stroke-width="4"/></svg></span> EN</a>
+          <a href="use-cases.html" lang="it" hreflang="it" aria-label="Italiano" title="Italiano" aria-current="true"><span aria-hidden="true"><svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="48" fill="#fff"/><rect width="21.33" height="48" fill="#008c45"/><rect x="42.67" width="21.33" height="48" fill="#cd212a"/></svg></span> IT</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="story-section" aria-labelledby="story-title">
+        <div class="wrap">
+          <div class="story-grid">
+            <div class="story-copy">
+              <p class="eyebrow">Casi d’uso · Tutto è iniziato in famiglia</p>
+              <h1 id="story-title">Perché ho creato<br><span>RemotePocket.</span></h1>
+              <p class="story-lead">Volevo aiutare i miei genitori a gestire e configurare il telefono, anche quando non ero lì con loro.</p>
+              <p>Non volevo che dovessero aprire un’app, leggermi un codice o autorizzare un collegamento ogni volta che avevano bisogno di aiuto. Darmi accesso non doveva diventare un’altra difficoltà da affrontare.</p>
+              <p>L’idea è semplice: configurarlo insieme una volta, con il loro consenso, e poi collegarmi dal browser quando serve una mano. Posso vedere lo schermo e fare direttamente le modifiche, senza dover spiegare ogni tocco per telefono.</p>
+            </div>
+            <aside class="story-aside" aria-labelledby="everyday-title">
+              <h2 id="everyday-title">Piccole cose che fanno la differenza</h2>
+              <ul>
+                <li>Ingrandire i caratteri per leggere meglio lo schermo.</li>
+                <li>Capire perché le notifiche di un’app non suonano.</li>
+                <li>Aiutare a configurare un’app o trovare un’impostazione.</li>
+                <li>Guardare lo stesso schermo mentre si parla al telefono.</li>
+              </ul>
+              <p class="case-source">Un esempio simile: <a href="https://static.teamviewer.com/resources/2021/03/Doro_TeamViewer_Case-Study_EN.pdf" hreflang="en">l’assistenza di Doro agli utenti anziani (PDF in inglese)</a>.</p>
+            </aside>
+          </div>
+          <div class="setup-note">
+            <h2>Si configura una volta. Non serve autorizzare ogni sessione.</h2>
+            <p>Dopo l’associazione e l’abilitazione dei permessi necessari, RemotePocket non chiede a chi usa il telefono di accettare ogni collegamento. Tu accedi alla console e usi la password del dispositivo.</p>
+            <p>Il telefono Android deve comunque essere online, sbloccato e con il servizio di accessibilità attivo e il controllo abilitato. Se si blocca o Android arresta il servizio, può servire un intervento sul dispositivo. Chi usa il telefono può mettere in pausa l’accesso o rimuovere l’associazione in qualsiasi momento.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="use-cases-section" aria-labelledby="cases-title">
+        <div class="wrap">
+          <div class="next-intro">
+            <p class="eyebrow">Oltre all’aiuto in famiglia</p>
+            <h2 id="cases-title">Altre situazioni in cui può servire.</h2>
+            <p>Questi esempi adattano gli usi comuni dell’assistenza remota alle funzioni Android attuali di RemotePocket. Gli articoli e i casi reali collegati descrivono il contesto di questi impieghi.</p>
+          </div>
+          <ol class="use-case-list">
+            <li>
+              <article class="use-case" aria-labelledby="personal-title">
+                <div class="case-heading">
+                  <span class="case-number" aria-hidden="true">01</span>
+                  <h3 id="personal-title">Accedi al tuo telefono o tablet</h3>
+                </div>
+                <div class="case-copy">
+                  <p>Se tieni un secondo dispositivo Android a casa o in un’altra stanza, puoi aprire un’app o controllare un’impostazione dal computer, purché il dispositivo sia pronto per l’accesso remoto.</p>
+                  <p class="case-example"><strong>Per esempio:</strong> controllare un’app su un secondo tablet senza andare a prenderlo.</p>
+                  <p class="case-source">Approfondimento: <a href="https://www.splashtop.com/blog/remote-access-view-control-android-phones-tablets" hreflang="en">la guida di Splashtop all’accesso remoto Android (in inglese)</a>.</p>
+                </div>
+              </article>
+            </li>
+            <li>
+              <article class="use-case" aria-labelledby="workplace-title">
+                <div class="case-heading">
+                  <span class="case-number" aria-hidden="true">02</span>
+                  <h3 id="workplace-title">Aiuta un collega a riprendere il lavoro</h3>
+                </div>
+                <div class="case-copy">
+                  <p>Quando un’app di lavoro non funziona come dovrebbe, puoi vedere il problema sul telefono del collega e controllare insieme le impostazioni. Si può così evitare un lungo scambio di screenshot e istruzioni.</p>
+                  <p class="case-example"><strong>Per esempio:</strong> controllare un’impostazione delle notifiche che impedisce di vedere nuovi avvisi di lavoro.</p>
+                  <p class="case-source">Approfondimento: <a href="https://static.teamviewer.com/resources/2020/09/TeamViewer-Mobile-Device-Support-Solution-Brief_EN.pdf" hreflang="en">la guida TeamViewer all’assistenza mobile (PDF in inglese)</a>.</p>
+                </div>
+              </article>
+            </li>
+            <li>
+              <article class="use-case" aria-labelledby="customers-title">
+                <div class="case-heading">
+                  <span class="case-number" aria-hidden="true">03</span>
+                  <h3 id="customers-title">Assisti i clienti dopo la configurazione</h3>
+                </div>
+                <div class="case-copy">
+                  <p>Un tecnico o una piccola attività di assistenza può intervenire sui dispositivi già associati con il consenso del cliente. Può controllare le impostazioni di un’app e spiegare la soluzione senza organizzare un’altra visita.</p>
+                  <p class="case-example"><strong>Per esempio:</strong> aiutare un cliente a completare la configurazione di un’app che hai installato per lui.</p>
+                  <p class="case-source">Approfondimento: <a href="https://static.teamviewer.com/resources/2020/09/TeamViewer-Mobile-Device-Support-Solution-Brief_EN.pdf" hreflang="en">l’assistenza mobile TeamViewer per clienti e fornitori di servizi (PDF in inglese)</a>.</p>
+                </div>
+              </article>
+            </li>
+            <li>
+              <article class="use-case" aria-labelledby="field-title">
+                <div class="case-heading">
+                  <span class="case-number" aria-hidden="true">04</span>
+                  <h3 id="field-title">Aiuta chi lavora fuori sede</h3>
+                </div>
+                <div class="case-copy">
+                  <p>Autisti, tecnici in trasferta e personale di altre sedi possono aver bisogno di aiuto mentre chi fa assistenza si trova altrove. Vedere lo schermo a distanza aiuta a capire cosa li sta bloccando.</p>
+                  <p class="case-example"><strong>Per esempio:</strong> aiutare un tecnico, mentre è fermo in sicurezza, a trovare la schermata giusta nell’app per gli interventi.</p>
+                  <p class="case-source">Approfondimento: <a href="https://static.teamviewer.com/resources/2020/08/TeamViewer-for-Internal-Remote-Support-Solution-Brief_en_us.pdf" hreflang="en">i casi TeamViewer di assistenza in più sedi e nella logistica (PDF in inglese)</a>.</p>
+                </div>
+              </article>
+            </li>
+            <li>
+              <article class="use-case" aria-labelledby="retail-title">
+                <div class="case-heading">
+                  <span class="case-number" aria-hidden="true">05</span>
+                  <h3 id="retail-title">Controlla i tablet in negozi e spazi pubblici</h3>
+                </div>
+                <div class="case-copy">
+                  <p>I tablet Android possono essere usati come menu, schermi per il check-in, chioschi informativi o display. Puoi vedere cosa mostrano e modificare le impostazioni dell’app da un altro luogo.</p>
+                  <p class="case-example"><strong>Per esempio:</strong> riportare il tablet di una reception alla schermata di benvenuto. La compatibilità dipende dal dispositivo e dalle restrizioni della modalità chiosco.</p>
+                  <p class="case-source">Approfondimento: <a href="https://static.teamviewer.com/resources/2020/09/TeamViewer-Mobile-Device-Support-Solution-Brief_EN.pdf" hreflang="en">gli esempi TeamViewer per chioschi, negozi e display informativi (PDF in inglese)</a>.</p>
+                </div>
+              </article>
+            </li>
+            <li>
+              <article class="use-case" aria-labelledby="education-title">
+                <div class="case-heading">
+                  <span class="case-number" aria-hidden="true">06</span>
+                  <h3 id="education-title">Tieni pronti i dispositivi per le lezioni</h3>
+                </div>
+                <div class="case-copy">
+                  <p>Una scuola o un centro di formazione può avere tablet usati in aule diverse o prestati agli studenti. Puoi aiutare a risolvere un problema su un dispositivo già associato con il consenso di chi lo usa, senza portarlo all’ufficio IT.</p>
+                  <p class="case-example"><strong>Per esempio:</strong> controllare le impostazioni di un’app didattica prima della prossima lezione.</p>
+                  <p class="case-source">Approfondimento: <a href="https://www.splashtop.com/blog/remote-access-education-uses" hreflang="en">gli esempi Splashtop per la didattica e l’assistenza scolastica (in inglese)</a>.</p>
+                </div>
+              </article>
+            </li>
+            <li>
+              <article class="use-case" aria-labelledby="volunteers-title">
+                <div class="case-heading">
+                  <span class="case-number" aria-hidden="true">07</span>
+                  <h3 id="volunteers-title">Assisti i volontari a distanza</h3>
+                </div>
+                <div class="case-copy">
+                  <p>In un’associazione, una sola persona può occuparsi di aiutare più volontari con il telefono. L’assistenza remota lo rende possibile anche quando tutti lavorano da luoghi diversi.</p>
+                  <p class="case-example"><strong>Per esempio:</strong> aiutare un volontario a trovare e configurare l’app usata per organizzare i turni.</p>
+                  <p class="case-source">Approfondimento: <a href="https://static.teamviewer.com/resources/2020/08/TeamViewer-for-Internal-Remote-Support-Solution-Brief_en_us.pdf" hreflang="en">il caso TeamViewer di un’organizzazione di volontariato (PDF in inglese)</a>.</p>
+                </div>
+              </article>
+            </li>
+            <li>
+              <article class="use-case" aria-labelledby="testing-title">
+                <div class="case-heading">
+                  <span class="case-number" aria-hidden="true">08</span>
+                  <h3 id="testing-title">Prova un’app su un dispositivo reale</h3>
+                </div>
+                <div class="case-copy">
+                  <p>Sviluppatori e tester possono esaminare un’app su un telefono Android associato che si trova su un’altra scrivania o in un’altra sede. Dal browser possono ripetere i tocchi e controllare cosa vede l’utente.</p>
+                  <p class="case-example"><strong>Per esempio:</strong> riprodurre manualmente un problema di impaginazione su un determinato modello di telefono.</p>
+                  <p class="case-source">Approfondimento: <a href="https://github.com/DeviceFarmer/stf" hreflang="en">i test sui dispositivi dal browser con DeviceFarmer STF (in inglese)</a>.</p>
+                </div>
+              </article>
+            </li>
+          </ol>
+          <div class="fit-note">
+            <h3>Cosa comprendono questi esempi</h3>
+            <p>RemotePocket oggi permette di vedere lo schermo e controllare manualmente Android: tocchi, scorrimenti, navigazione e inserimento di testo nei campi supportati. Per vedere lo schermo serve Android 11 o successivo. Restano valide le restrizioni delle app e dei dispositivi.</p>
+            <p>Non sono inclusi la distribuzione delle app su tutti i dispositivi, gli aggiornamenti automatici, l’automazione dei test o la gestione dedicata dei chioschi. Gli esempi descrivono singole sessioni di assistenza, senza queste funzioni aggiuntive.</p>
+            <div class="cta-actions"><a class="button button-primary" href="https://app.remotepocket.ercoliconsulting.eu/">Inizia gratis <span aria-hidden="true">↗</span></a><a class="text-link" href="index.html#how-it-works">Scopri come iniziare</a></div>
+            <p class="availability">Servizio pubblico in preparazione: l’accesso sarà disponibile al lancio.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="contact-section" id="contact" aria-labelledby="use-contact-title">
+        <div class="wrap contact-grid">
+          <div>
+            <p class="eyebrow">Contatti</p>
+            <h2 id="use-contact-title">Ti trovi in una<br>situazione simile?</h2>
+          </div>
+          <div class="contact-details">
+            <p>Raccontami chi vuoi aiutare e cosa devi fare sul suo dispositivo.</p>
+            <a class="email-link" href="mailto:remotepocket@ercoliconsulting.eu?subject=RemotePocket%20-%20caso%20d%27uso">remotepocket@ercoliconsulting.eu</a>
+            <p class="contact-note">RemotePocket è open source con licenza GNU GPL v3 o successiva. Puoi installarlo sul tuo server.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <a class="brand footer-brand" href="index.html">RemotePocket</a>
+        <p>Usalo sui tuoi dispositivi o su quelli che sei autorizzato a gestire.</p>
+        <a href="../license.txt">GPL-3.0-or-later</a>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MyDesk Agent</string>
+    <string name="accessibility_service_name">MyDesk Remote Control</string>
+    <string name="setup_title">1. Configura MyDesk</string>
+    <string name="backend_url">URL HTTPS del server</string>
+    <string name="device_name">Nome dispositivo</string>
+    <string name="pairing_code">Codice pairing (8 caratteri)</string>
+    <string name="device_password">Password dispositivo</string>
+    <string name="pair_device">Associa dispositivo</string>
+    <string name="accessibility_guide">2. Accessibilità
+Abilita MyDesk nelle impostazioni per consentire gesti e controllo remoto. Puoi sospendere il controllo in qualsiasi momento.</string>
+    <string name="accessibility_settings">Apri impostazioni accessibilità</string>
+    <string name="screenshot_unavailable">Su Android 8–10 gli screenshot non sono disponibili.</string>
+    <string name="operation_title">3. Stato operativo</string>
+    <string name="pause_control">Sospendi controllo</string>
+    <string name="resume_control">Riprendi controllo</string>
+    <string name="remove_configuration">Rimuovi configurazione</string>
+    <string name="remove_confirmation">Terminare il controllo e rimuovere la configurazione locale? Potrai effettuare un nuovo pairing.</string>
+    <string name="state_unpaired">Non associato: completa il pairing.</string>
+    <string name="state_accessibility">Accessibilità disabilitata.</string>
+    <string name="state_connecting">Connessione in corso…</string>
+    <string name="state_online">Online: pronto per una sessione autorizzata.</string>
+    <string name="state_active">Sessione remota attiva.</string>
+    <string name="state_reconnecting">Connessione persa: riconnessione in corso…</string>
+    <string name="state_paused">Controllo sospeso. Nessuna connessione remota.</string>
+    <string name="state_invalid">Credenziali non valide o illeggibili. Esegui un nuovo pairing.</string>
+    <string name="invalid_fields">Controlla URL, nome, codice di 8 caratteri e password di almeno 8 caratteri. HTTP è ammesso solo nelle build debug.</string>
+    <string name="pairing_progress">Pairing in corso…</string>
+    <string name="pairing_failed">Pairing non riuscito. Controlla rete, server e codice, poi riprova.</string>
+</resources>
+

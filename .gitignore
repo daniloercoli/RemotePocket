@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_tmp/
+.venv/
+*.db
+*.sqlite
+*.log
+Server/mydesk_server.egg-info/
+
+# Environment variables - CRITICAL: Never commit secrets!
+.env
+.env.*
+!.env.example
+
+# Android / Gradle
+.gradle/
+build/
+captures/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# IDE
+.idea/
+.vscode/
+
+# Database
+*.db-journal
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deployment credentials and local audit/build output
+**/secrets/
+**/nginx/ssl/
+**/backups/
+*.pem
+*.key
+*.p12
+*.pfx
+Server/security-reports/
+Server/dist/
+Server/build/
+
+# Private documentation and working notes
+/private/

@@ -1,0 +1,52 @@
+groups:
+  - name: mydesk
+    rules:
+      - alert: MyDeskHighErrorRate
+        expr: sum(rate(http_requests_total{job="mydesk",status=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total{job="mydesk"}[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: MyDesk HTTP error rate exceeds 5%
+      - alert: MyDeskHighLatency
+        expr: histogram_quantile(0.95, sum by (le) (rate(request_duration_seconds_bucket{job="mydesk"}[5m]))) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: MyDesk HTTP p95 latency exceeds 500 ms
+      - alert: MyDeskServiceDown
+        expr: up{job="mydesk"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: MyDesk metrics endpoint is unavailable
+      - alert: MyDeskNotReady
+        expr: mydesk_ready{job="mydesk"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: MyDesk health checks are failing
+      - alert: MyDeskAuthFailureSpike
+        expr: sum(rate(auth_failures_total{job="mydesk"}[5m])) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: MyDesk authentication failures exceed five per second
+      - alert: MyDeskWebSocketDisconnectSpike
+        expr: sum(rate(websocket_disconnects_total{job="mydesk"}[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: MyDesk WebSocket disconnections exceed ten per second
+      - alert: MyDeskDatabasePoolExhausted
+        expr: db_pool_connections{job="mydesk"} / db_pool_capacity{job="mydesk"} > 0.9
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: MyDesk database pool usage exceeds 90 percent

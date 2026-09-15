@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MyDesk Console</title>
+    <link rel="stylesheet" href="/static/console.css" />
+  </head>
+  <body>
+    <header>
+      <h1>MyDesk Console</h1>
+      <span id="connectionBadge" class="status">non connesso</span>
+    </header>
+
+    <main>
+      <div class="stack">
+        <section class="panel stack">
+          <h2>Account</h2>
+          <label>Email facoltativa<input id="email" type="email" autocomplete="email" /></label>
+          <label>
+            Username
+            <input id="username" autocomplete="username" value="admin" />
+          </label>
+          <label>
+            Password
+            <input id="password" type="password" autocomplete="current-password" />
+          </label>
+          <p id="authStatus" role="status"></p><p class="log">Per creare un owner: username di 3–30 lettere, numeri o underscore; password lunga e imprevedibile con maiuscole, minuscole, numeri e simboli.</p>
+          <div class="row">
+            <button class="primary" id="loginButton">Login</button>
+            <button id="bootstrapButton">Crea primo owner</button><button id="registerButton">Registrati</button>
+            <button id="logoutButton">Esci</button>
+          </div>
+        </section>
+
+        <section class="panel stack" id="mfaLogin" hidden>
+          <h2>Secondo fattore</h2><label>Codice TOTP o recupero<input id="loginCode" autocomplete="one-time-code" /></label>
+          <button id="verifyMfaButton">Completa accesso</button>
+        </section>
+        <details class="panel" id="accountPanel">
+          <summary>Impostazioni account</summary><div class="stack"><button id="accountRefresh">Mostra account</button><p id="accountStatus" role="status"></p>
+          <label>Password attuale<input id="currentPassword" type="password" autocomplete="current-password" /></label>
+          <label>TOTP o codice di recupero<input id="factorCode" autocomplete="one-time-code" /></label>
+          <label>Nuova email<input id="newEmail" type="email" /></label>
+          <button id="changeEmail">Cambia email</button><button id="resendEmail">Reinvia verifica</button>
+          <button id="setupMfa">Attiva TOTP</button><img id="qrImage" alt="QR per autenticatore" hidden />
+          <p id="manualSecret"></p><button id="confirmMfa" hidden>Conferma attivazione</button>
+          <button id="disableMfa">Disattiva TOTP</button><button id="regenerateMfa">Rigenera codici di recupero</button>
+          <pre id="recoveryCodes" tabindex="0"></pre><button id="dismissCodes" hidden>Ho salvato i codici: nuovo accesso</button>
+          <p id="accountError" role="status"></p>
+        </div></details>
+        <details class="panel" id="recoveryPanel">
+          <summary>Recupero e verifica email</summary><div class="stack">
+          <label>Email verificata<input id="recoveryEmail" type="email" /></label><button id="requestReset">Invia recupero</button>
+          <label>Nuova password<input id="newPassword" type="password" autocomplete="new-password" /></label>
+          <button id="consumeReset" hidden>Reimposta password</button><button id="consumeVerify" hidden>Conferma email</button>
+          <p id="recoveryStatus" role="status"></p>
+        </div></details>
+        <section class="panel stack">
+          <h2>Pairing</h2>
+          <button id="pairingButton">Crea pairing code</button>
+          <div id="pairingCode" class="log">Nessun codice generato.</div>
+        </section>
+
+        <section class="panel stack">
+          <div class="row space-between">
+            <h2>Dispositivi</h2>
+            <button id="refreshButton">Aggiorna</button>
+          </div>
+          <label>Cerca nome o ID<input id="deviceSearch" type="search" /></label>
+          <label>Stato<select id="deviceStatus"><option value="">Tutti</option><option value="online">Online</option><option value="offline">Offline</option><option value="in_session">Occupati</option><option value="revoked">Revocati</option></select></label>
+          <label>Ordine<select id="deviceSort"><option value="name">Nome</option><option value="seen">Ultima presenza</option></select></label>
+          <div id="devices" class="device-list"></div>
+        </section>
+      </div>
+
+      <section class="screen-shell">
+        <div id="sessionTabs" role="tablist" aria-label="Sessioni remote"></div><div class="screen-toolbar">
+          <div class="stack compact">
+            <h2 id="sessionTitle">Nessuna sessione</h2>
+            <span id="frameInfo" class="status">nessun frame</span>
+          </div>
+          <button class="danger" id="endSessionButton">Chiudi sessione</button>
+        </div>
+
+        <div class="screen-stage">
+          <img id="screenImage" alt="Schermo remoto" hidden />
+          <div id="screenEmpty" class="screen-empty">Apri una sessione per vedere lo schermo remoto.</div>
+        </div>
+
+        <div class="remote-controls">
+          <div class="row">
+            <button data-action="BACK">Indietro</button>
+            <button data-action="HOME">Home</button>
+            <button data-action="RECENTS">App recenti</button>
+          </div>
+          <div class="row">
+            <input id="textInput" placeholder="Testo da inviare" />
+            <button id="sendTextButton">Invia testo</button>
+          </div>
+          <div id="log" class="log">Pronto.</div>
+        </div>
+      </section>
+    </main>
+
+    <section class="panel stack" id="activityPanel">
+      <h2>Attività</h2><label>Dal<input id="activityStart" type="datetime-local" /></label><label>Al<input id="activityEnd" type="datetime-local" /></label>
+      <label>Tipo evento<input id="activityType" /></label><label>ID dispositivo<input id="activityDevice" /></label>
+      <button id="activityRefresh">Aggiorna attività</button><p id="activityRefreshStatus" role="status"></p><p id="activitySummary"></p><div id="activityEvents"></div><button id="activityMore" hidden>Altri eventi</button><p id="activityError" role="status"></p>
+    </section>
+    <script src="/static/console.js" defer></script>
+    <script src="/static/account.js" defer></script>
+  </body>
+</html>

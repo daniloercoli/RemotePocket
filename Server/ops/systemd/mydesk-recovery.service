@@ -1,0 +1,11 @@
+[Unit]
+Description=MyDesk backup with isolated recovery verification
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/mydesk/Server
+EnvironmentFile=/etc/mydesk/backup.env
+ExecStart=/usr/bin/env MYDESK_BACKUP_TEST_RECOVERY=true /usr/bin/bash /opt/mydesk/Server/scripts/backup.sh /var/backups/mydesk
+UMask=0077

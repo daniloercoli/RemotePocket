@@ -1,0 +1,57 @@
+[project]
+name = "mydesk-server"
+version = "0.1.0"
+description = "Backend MVP per controllo remoto Android autorizzato"
+requires-python = ">=3.12"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+dependencies = [
+    "pyotp>=2.9.0",
+    "cryptography>=50.0.1",
+    "qrcode>=8.2",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "sqlalchemy>=2.0.0",
+    "argon2-cffi>=23.1.0",
+    "PyJWT>=2.10.1",
+    "pydantic-settings>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "limits[redis]>=5.6.0",
+    "httpx>=0.28.1",
+    "email-validator>=2.2.0",
+    "zxcvbn>=4.4.28",
+    # Phase 2: Reliability & Monitoring
+    "prometheus-client>=0.20.0",
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-sdk>=1.24.0",
+    "opentelemetry-instrumentation-fastapi>=0.45.0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.45.0",
+    "opentelemetry-exporter-otlp>=1.24.0",
+    "redis>=7.4.0",
+    "psutil>=6.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.16.7",
+]
+security = [
+    "pip-audit>=2.0.0",
+    "bandit>=1.7.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--basetemp=.pytest_tmp"
+
+[tool.setuptools.package-data]
+app = ["static/*.html", "static/*.css", "static/*.js"]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
