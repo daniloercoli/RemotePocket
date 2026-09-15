@@ -1,6 +1,6 @@
 # RemotePocket
 
-RemotePocket (previously MyDesk) lets you control mobile devices from a web browser. The current version supports Android and includes a Python server, a web console and an Android app. Use it on devices you own or have permission to manage.
+RemotePocket lets you control mobile devices from a web browser. The current version supports Android and includes a Python server, a web console and an Android app. Use it on devices you own or have permission to manage.
 
 ## What you need
 

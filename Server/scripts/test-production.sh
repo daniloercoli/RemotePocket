@@ -56,15 +56,43 @@ openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
 "${compose[@]}" exec -T nginx nginx -t
 # Run checks inside the built image so the test has no host Python dependencies.
 "${compose[@]}" exec -T app python - <<'PY'
+import asyncio
 import httpx
 import json
 import ssl
-from websockets.sync.client import connect
+from websockets.asyncio.client import connect
 from app.main import app
 from app.auth_service import AuthService
 from app.models import User
 from app.security import hash_password
 from app.timeutils import utc_now
+
+
+async def check_websocket_relay(tokens, paired):
+    # Keep TLS I/O on one event loop; connect directly to this disposable stack.
+    tls = ssl._create_unverified_context()  # Disposable self-signed test certificate.
+    print('Production smoke: opening console WebSocket through nginx', flush=True)
+    async with connect('wss://nginx/console/ws', ssl=tls, origin='https://localhost',
+                       subprotocols=['mydesk', 'bearer.' + tokens['access_token']],
+                       proxy=None, open_timeout=10) as ws:
+        assert ws.subprotocol == 'mydesk'
+        assert json.loads(await asyncio.wait_for(ws.recv(), timeout=5))['type'] == 'console_registered'
+        print('Production smoke: console registered; opening device WebSocket', flush=True)
+        async with connect('wss://nginx/device/ws?device_id=' + paired['device_id'], ssl=tls,
+                           additional_headers={'Authorization': 'Bearer ' + paired['device_token']},
+                           proxy=None, open_timeout=10) as device:
+            assert json.loads(await asyncio.wait_for(device.recv(), timeout=5))['type'] == 'device_registered'
+            print('Production smoke: device registered; checking binary relay', flush=True)
+            await ws.send(json.dumps({'type': 'session_start_request', 'deviceId': paired['device_id'],
+                                      'devicePassword': 'smoke-device-password'}))
+            sid = json.loads(await asyncio.wait_for(device.recv(), timeout=5))['sessionId']
+            assert json.loads(await asyncio.wait_for(ws.recv(), timeout=5))['type'] == 'session_started'
+            frame = json.dumps({'type': 'screen_frame', 'sessionId': sid, 'frameId': 1,
+                                'width': 1, 'height': 1, 'format': 'jpeg'}).encode()
+            packet = len(frame).to_bytes(4, 'little') + frame + bytes([255, 216, 255, 217])
+            await device.send(packet)
+            assert await asyncio.wait_for(ws.recv(), timeout=5) == packet
+
 
 # Test credentials only, inserted through a trusted database session.
 with app.state.SessionLocal() as db:
@@ -98,22 +126,7 @@ with httpx.Client(base_url='https://nginx', verify=False, timeout=10) as client:
     code = client.post('/api/pairing-codes', headers=headers).json()['code']
     paired = client.post('/api/devices/pair', json={'pairing_code': code, 'name': 'Smoke device',
                                                   'device_password': 'smoke-device-password'}).json()
-    tls = ssl._create_unverified_context()  # Disposable self-signed test certificate.
-    with connect('wss://nginx/console/ws', ssl=tls, origin='https://localhost',
-                 subprotocols=['mydesk', 'bearer.' + tokens['access_token']]) as ws:
-        assert json.loads(ws.recv(timeout=5))['type'] == 'console_registered'
-        with connect('wss://nginx/device/ws?device_id=' + paired['device_id'], ssl=tls,
-                     additional_headers={'Authorization': 'Bearer ' + paired['device_token']}) as device:
-            assert json.loads(device.recv(timeout=5))['type'] == 'device_registered'
-            ws.send(json.dumps({'type': 'session_start_request', 'deviceId': paired['device_id'],
-                                'devicePassword': 'smoke-device-password'}))
-            sid = json.loads(device.recv(timeout=5))['sessionId']
-            assert json.loads(ws.recv(timeout=5))['type'] == 'session_started'
-            frame = json.dumps({'type': 'screen_frame', 'sessionId': sid, 'frameId': 1,
-                                'width': 1, 'height': 1, 'format': 'jpeg'}).encode()
-            packet = len(frame).to_bytes(4, 'little') + frame + bytes([255, 216, 255, 217])
-            device.send(packet)
-            assert ws.recv(timeout=5) == packet
+    asyncio.run(check_websocket_relay(tokens, paired))
     assert client.post('/api/auth/logout', headers=headers, json={'refresh_token': tokens['refresh_token']}).status_code == 200
     assert client.get('/api/auth/me', headers=headers).status_code == 401
     for _ in range(4):

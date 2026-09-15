@@ -40,13 +40,13 @@ jobs:
       MYDESK_TEST_REDIS_URL: redis://localhost:6379/0
       MYDESK_TEST_POSTGRES_URL: ${{ matrix.database == 'postgres' && 'postgresql+psycopg2://mydesk:mydesk-test-only@localhost:5432/mydesk_test' || '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: Server/requirements.lock
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Install backend and test dependencies
@@ -65,15 +65,15 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install audit tools
         run: python -m pip install --upgrade 'pip>=26.2' 'pip-audit>=2.10' 'bandit>=1.9'
       - name: Audit source and locked runtime dependencies
         run: Server/scripts/security-check.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: security-reports
@@ -83,7 +83,7 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Scan history and working tree without online credential verification
@@ -94,23 +94,23 @@ jobs:
     container:
       image: semgrep/semgrep:1.136.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Scan Python, JavaScript and Kotlin
         run: semgrep scan --config p/python --config p/javascript --config p/kotlin --error --metrics=off --exclude 'Server/tests' --exclude 'Android/app/src/test' .
 
   android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           # Override the default list, which includes the unavailable legacy tools package.
           packages: 'platform-tools platforms;android-35'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       - name: Test and build Android
         working-directory: Android
         run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
@@ -118,14 +118,14 @@ jobs:
   production-stack:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build and verify HTTPS stack
         run: Server/scripts/test-production.sh
 
   monitoring:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate monitoring configuration and error-rate alert
         run: |
           monitoring_token_file="$(mktemp)"
