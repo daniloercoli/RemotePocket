@@ -138,7 +138,7 @@ class TestAuthServiceLogin:
         db_session.add(user)
         db_session.commit()
 
-        with pytest.raises(ValueError, match="Account temporarily locked"):
+        with pytest.raises(ValueError, match="Invalid credentials"):
             auth_service.login("testuser", "Violet!Harbor7Lantern")
 
 

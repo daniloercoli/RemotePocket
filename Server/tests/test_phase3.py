@@ -20,7 +20,7 @@ from app.models import (
 )
 from app.security import hash_secret
 from app.timeutils import utc_now
-from tests.conftest import register_device, create_reset_token
+from tests.conftest import request_session, register_device, create_reset_token
 
 PASSWORD = "Quercia!Viola7Sentiero"
 
@@ -887,22 +887,10 @@ def test_three_device_sessions_limit_and_independent_close(
         assert console.receive_json()["type"] == "console_registered"
         ids = []
         for device, ws in zip(devices[:3], sockets):
-            console.send_json(
-                {
-                    "type": "session_start_request",
-                    "deviceId": device["device_id"],
-                    "devicePassword": "password-device",
-                }
-            )
+            request_session(console, device["device_id"], "password-device")
             ids.append(ws.receive_json()["sessionId"])
             assert console.receive_json()["sessionId"] == ids[-1]
-        console.send_json(
-            {
-                "type": "session_start_request",
-                "deviceId": devices[3]["device_id"],
-                "devicePassword": "password-device",
-            }
-        )
+        request_session(console, devices[3]["device_id"], "password-device")
         assert console.receive_json()["code"] == "SESSION_LIMIT"
         console.send_json(
             {"type": "session_end", "sessionId": ids[0], "reason": "user_closed"}

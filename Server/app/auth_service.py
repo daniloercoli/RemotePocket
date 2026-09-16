@@ -103,6 +103,9 @@ class AuthService:
 
         user_id = self.db.scalar(select(User.id).where(User.username == username))
         user = self._lock_user(user_id) if user_id else None
+        # Missing and locked accounts must also perform one Argon2 check. Keep
+        # denial details in the audit trail, not in the public login response.
+        password_valid = verify_password(password, user.password_hash if user else None)
 
         # Check lockout
         if self._check_lockout(user):
@@ -122,12 +125,10 @@ class AuthService:
                 success=False,
                 count_failure=False,
             )
-            raise AuthenticationError(
-                "Account temporarily locked due to too many failed attempts"
-            )
+            raise AuthenticationError("Invalid credentials")
 
         # Validate password
-        if user is None or not verify_password(password, user.password_hash):
+        if user is None or not password_valid:
             self._record_login_attempt(
                 user, username, ip_address, user_agent, success=False
             )
@@ -158,7 +159,7 @@ class AuthService:
                 ip_address=ip_address,
                 user_agent=user_agent,
             )
-            raise AuthenticationError("Account is not active")
+            raise AuthenticationError("Invalid credentials")
 
         if user.totp_secret:
             write_audit(self.db, "mfa_challenge_created", owner_id=user.id)

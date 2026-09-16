@@ -49,6 +49,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      - name: Install backup encryption tools
+        run: sudo apt-get update && sudo apt-get install -y age
       - name: Install backend and test dependencies
         working-directory: Server
         run: |
@@ -119,6 +121,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Install backup encryption tools
+        run: sudo apt-get update && sudo apt-get install -y age
       - name: Build and verify HTTPS stack
         run: Server/scripts/test-production.sh
 

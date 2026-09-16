@@ -14,15 +14,19 @@ from app.config import Settings
 from app.timeutils import utc_now
 
 _password_hasher = PasswordHasher()
+# Match the cost of a real credential check when the account does not exist.
+# Generate once per process; this value can never authenticate an account.
+_dummy_password_hash = _password_hasher.hash(secrets.token_urlsafe(32))
 
 
 def hash_password(password: str) -> str:
     return _password_hasher.hash(password)
 
 
-def verify_password(password: str, password_hash: str) -> bool:
+def verify_password(password: str, password_hash: str | None) -> bool:
     try:
-        return _password_hasher.verify(password_hash, password)
+        verified = _password_hasher.verify(password_hash or _dummy_password_hash, password)
+        return bool(password_hash) and verified
     except (VerificationError, InvalidHashError):
         return False
 

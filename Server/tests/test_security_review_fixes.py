@@ -16,7 +16,7 @@ from app.main import create_app
 from app.models import AuditLog
 from app.websocket_limits import FrameBudget
 from app.websocket_manager import WebSocketManager
-from tests.conftest import register_device
+from tests.conftest import request_session, register_device
 
 
 def console(client, token):
@@ -196,13 +196,7 @@ def test_remote_session_limit_is_atomic_across_console_connections(
 
         def start(pair):
             ws, device = pair
-            ws.send_json(
-                {
-                    "type": "session_start_request",
-                    "deviceId": device["device_id"],
-                    "devicePassword": "password-device",
-                }
-            )
+            request_session(ws, device["device_id"], "password-device")
             return ws.receive_json()
 
         opened = [start((consoles[0], d)) for d in devices[:2]]
@@ -342,13 +336,7 @@ def test_excess_screen_frames_close_device_and_end_session(
     ):
         peer.receive_json()
         ws.receive_json()
-        ws.send_json(
-            {
-                "type": "session_start_request",
-                "deviceId": device["device_id"],
-                "devicePassword": "password-device",
-            }
-        )
+        request_session(ws, device["device_id"], "password-device")
         session_id = ws.receive_json()["sessionId"]
         peer.receive_json()
         header = json.dumps(
@@ -370,3 +358,13 @@ def test_excess_screen_frames_close_device_and_end_session(
         assert error.value.code == 4429
         assert ws.receive_json()["type"] == "session_end"
         assert not client.app.state.ws_manager.session_routes
+
+
+def test_unauthenticated_device_query_is_not_logged(client, caplog):
+    marker = "sensitive-query-marker"
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/device/ws?device_id=" + marker):
+            pass
+    records = [record.getMessage() for record in caplog.records if record.name.startswith("app.")]
+    assert any("Device connection rejected" in message for message in records)
+    assert all(marker not in message for message in records)

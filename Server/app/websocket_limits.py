@@ -35,7 +35,11 @@ async def allow_upgrade(websocket):
         return False
 
 
-async def allow_control(websocket, scope, owner_id):
+async def allow_control(websocket, scope, owner_id, connection_limiter):
+    # Reject bursts locally before querying shared storage or parsing the message.
+    if not connection_limiter.accept():
+        await websocket.close(code=4429, reason="control_rate_limit")
+        return False
     try:
         enforce_limit(
             websocket.app,
@@ -48,6 +52,24 @@ async def allow_control(websocket, scope, owner_id):
     except HTTPException as error:
         await websocket.close(code=4429 if error.status_code == 429 else 1013)
         return False
+
+
+class WebSocketRateLimiter:
+    """One rolling second of control messages, owned by a single connection."""
+
+    def __init__(self, max_messages_per_second: int):
+        self.max_messages = max_messages_per_second
+        self.messages = deque()
+
+    def accept(self) -> bool:
+        now = time.monotonic()
+        while self.messages and self.messages[0] <= now - 1:
+            self.messages.popleft()
+        if len(self.messages) >= self.max_messages:
+            return False
+        # Rejected messages do not grow the queue; memory is bounded by the limit.
+        self.messages.append(now)
+        return True
 
 
 class FrameBudget:

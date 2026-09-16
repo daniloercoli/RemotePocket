@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     )
     environment: Literal["dev", "staging", "prod"] = "dev"
     debug: bool = False
-    secret_key: str = Field(default="dev-secret-change-me-in-production", repr=False)
+    secret_key: str = Field(default="", repr=False)
     access_token_ttl_minutes: int = Field(default=60, ge=1, le=1440)
     refresh_token_ttl_days: int = Field(default=30, ge=1, le=30)
     max_login_attempts: int = Field(default=5, ge=1, le=10)
@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     max_websocket_connections: int = Field(default=1000, ge=1, le=10000)
     rate_limit_ws_upgrade: int = Field(default=30, ge=1, le=300)
     rate_limit_ws_control: int = Field(default=600, ge=1, le=6000)
+    rate_limit_ws_control_per_second: int = Field(default=30, ge=1, le=300)
     max_screen_frames_per_second: int = Field(default=30, ge=1, le=60)
     max_screen_bytes_per_second: int = Field(default=10_000_000, ge=1, le=100_000_000)
     monitoring_token: str = Field(default="", repr=False)
@@ -111,6 +112,12 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_environment(self):
+        if len(self.secret_key.strip()) < 32 or self.secret_key.strip().startswith(
+            "dev-secret"
+        ):
+            raise ValueError(
+                "MYDESK_SECRET_KEY must be configured with a random key of at least 32 characters"
+            )
         if self.monitoring_token and (
             len(self.monitoring_token) < 32
             or self.monitoring_token in {self.secret_key, self.encryption_key}
@@ -180,10 +187,6 @@ class Settings(BaseSettings):
         if not self.is_dev:
             if self.debug:
                 raise ValueError("DEBUG must be false in staging/production")
-            if len(self.secret_key) < 32 or self.secret_key.startswith("dev-secret"):
-                raise ValueError(
-                    "A random SECRET_KEY of at least 32 characters is required"
-                )
             if url.get_backend_name() != "postgresql":
                 raise ValueError("PostgreSQL is required in staging/production")
             if urlsplit(self.redis_url).scheme not in {"redis", "rediss"}:

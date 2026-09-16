@@ -57,8 +57,12 @@ openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
 # Run checks inside the built image so the test has no host Python dependencies.
 "${compose[@]}" exec -T app python - <<'PY'
 import asyncio
+import base64
+import hashlib
+import hmac
 import httpx
 import json
+import secrets
 import ssl
 from websockets.asyncio.client import connect
 from app.main import app
@@ -66,6 +70,26 @@ from app.auth_service import AuthService
 from app.models import User
 from app.security import hash_password
 from app.timeutils import utc_now
+
+
+def check_security_headers(response, *, edge=False, https=True):
+    expected = {
+        'strict-transport-security': 'max-age=31536000; includeSubDomains',
+        'x-frame-options': 'DENY',
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+        'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+        'cache-control': 'no-store',
+        'content-security-policy': (
+            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+            if edge else app.state.settings.content_security_policy
+        ),
+    }
+    if not https:
+        expected.pop('strict-transport-security')
+        assert 'strict-transport-security' not in response.headers
+    for name, value in expected.items():
+        assert response.headers.get_list(name) == [value], (response.status_code, name, response.headers.get_list(name))
 
 
 async def check_websocket_relay(tokens, paired):
@@ -83,10 +107,25 @@ async def check_websocket_relay(tokens, paired):
                            proxy=None, open_timeout=10) as device:
             assert json.loads(await asyncio.wait_for(device.recv(), timeout=5))['type'] == 'device_registered'
             print('Production smoke: device registered; checking binary relay', flush=True)
+            await ws.send(json.dumps({'type': 'session_challenge_request', 'deviceId': paired['device_id'],
+                                      'clientNonce': secrets.token_hex(32)}))
+            challenge = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
+            assert challenge['type'] == 'session_challenge'
+            salted = hashlib.pbkdf2_hmac('sha256', b'smoke-device-password',
+                                        base64.b64decode(challenge['salt']), challenge['iterations'])
+            client_key = hmac.digest(salted, b'Client Key', 'sha256')
+            nonce = challenge['nonce']
+            transcript = (f"n={paired['device_id']},r={challenge['clientNonce']},r={nonce},"
+                          f"s={challenge['salt']},i={challenge['iterations']},c=biws,r={nonce}").encode()
+            signature = hmac.digest(hashlib.sha256(client_key).digest(), transcript, 'sha256')
+            proof = base64.b64encode(bytes(a ^ b for a, b in zip(client_key, signature))).decode()
             await ws.send(json.dumps({'type': 'session_start_request', 'deviceId': paired['device_id'],
-                                      'devicePassword': 'smoke-device-password'}))
+                                      'challengeId': challenge['challengeId'], 'proof': proof}))
             sid = json.loads(await asyncio.wait_for(device.recv(), timeout=5))['sessionId']
-            assert json.loads(await asyncio.wait_for(ws.recv(), timeout=5))['type'] == 'session_started'
+            started = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
+            assert started['type'] == 'session_started'
+            expected = hmac.digest(hmac.digest(salted, b'Server Key', 'sha256'), transcript, 'sha256')
+            assert started['serverProof'] == base64.b64encode(expected).decode()
             frame = json.dumps({'type': 'screen_frame', 'sessionId': sid, 'frameId': 1,
                                 'width': 1, 'height': 1, 'format': 'jpeg'}).encode()
             packet = len(frame).to_bytes(4, 'little') + frame + bytes([255, 216, 255, 217])
@@ -104,10 +143,23 @@ with httpx.Client(base_url='https://nginx', verify=False, timeout=10) as client:
     health = client.get('/api/health')
     assert health.status_code == 200, health.text
     assert health.json() == {'status': 'ok'}
+    check_security_headers(health)
+    check_security_headers(client.get('/'))
+    check_security_headers(client.get('/static/console.js'))
+    missing = client.get('/missing')
+    assert missing.status_code == 404
+    check_security_headers(missing)
+    oversized = client.post('/api/auth/login', content=b'x' * 65537)
+    assert oversized.status_code == 413
+    check_security_headers(oversized, edge=True)
     monitoring = {'Authorization': 'Bearer ' + app.state.settings.monitoring_token}
     for path in ('/metrics', '/api/health/ready', '/api/health/advanced'):
-        assert client.get(path).status_code == 401
-        assert client.get(path, headers={'Authorization': 'Bearer invalid-monitor'}).status_code == 401
+        anonymous = client.get(path)
+        assert anonymous.status_code == 401
+        check_security_headers(anonymous, edge=True)
+        invalid = client.get(path, headers={'Authorization': 'Bearer invalid-monitor'})
+        assert invalid.status_code == 401
+        check_security_headers(invalid)
         assert client.get(path, headers=monitoring).status_code == 200
     metrics = client.get('/metrics', headers=monitoring)
     assert metrics.status_code == 200 and 'http_requests_total' in metrics.text
@@ -135,13 +187,61 @@ with httpx.Client(base_url='https://nginx', verify=False, timeout=10) as client:
                            headers={'X-Forwarded-For': '192.0.2.9'})
     assert response.status_code == 429, response.text
     assert 'retry-after' in response.headers
+    check_security_headers(response)
 redirect = httpx.get('http://nginx/api/health', follow_redirects=False)
 assert redirect.status_code == 301
 assert redirect.headers['location'] == 'https://localhost/api/health'
+check_security_headers(redirect, edge=True, https=False)
 print('Production smoke: HTTPS, HSTS, secrets, PostgreSQL, Redis limits, WSS binary relay, login and logout passed')
 PY
 
+export MYDESK_BACKUP_AGE_IDENTITY_FILE="$test_dir/backup-identity.txt"
+age-keygen -o "$MYDESK_BACKUP_AGE_IDENTITY_FILE"
+export MYDESK_BACKUP_AGE_RECIPIENT="$(age-keygen -y "$MYDESK_BACKUP_AGE_IDENTITY_FILE")"
 # These backups use only the disposable production-smoke Compose project above.
 bash scripts/backup.sh "$test_dir/backups"
-backup_files=("$test_dir"/backups/*.sql.gz)
+backup_files=("$test_dir"/backups/*.sql.gz.age)
 bash scripts/test-recovery.sh "${backup_files[0]}"
+
+# Verify nginx's upstream-failure response after stopping only this disposable app.
+"${compose[@]}" stop app
+python3 - <<'PY'
+import os
+import ssl
+import urllib.error
+import urllib.request
+
+context = ssl._create_unverified_context()  # Disposable self-signed certificate.
+opener = urllib.request.build_opener(
+    urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=context)
+)
+url = 'https://127.0.0.1:' + os.environ['MYDESK_HTTPS_PORT'] + '/?token=mydesk-log-sensitive-marker'
+try:
+    # A stopped Docker peer can refuse immediately (502) or remain unreachable
+    # until nginx's default 60-second connect timeout (504).
+    opener.open(url, timeout=75)
+except urllib.error.HTTPError as error:
+    assert error.code in {502, 504}, error.code
+    expected = {
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'no-referrer',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+        'Cache-Control': 'no-store',
+        'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    }
+    for name, value in expected.items():
+        assert error.headers.get_all(name) == [value], (name, error.headers.get_all(name))
+else:
+    raise AssertionError('Expected nginx to reject the unavailable upstream')
+print('Production smoke: security headers verified on nginx 401, 413 and upstream-failure errors')
+PY
+
+# nginx must not emit request secrets through inherited access or error logs.
+"${compose[@]}" logs --no-color nginx > "$test_dir/nginx.log"
+if grep -q 'mydesk-log-sensitive-marker' "$test_dir/nginx.log"; then
+    echo 'Sensitive request marker found in nginx logs' >&2
+    exit 1
+fi
+echo 'Production smoke: upstream-error request secrets excluded from nginx logs'

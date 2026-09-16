@@ -8,7 +8,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.config import Settings
 from app.main import create_app
-from tests.conftest import register_device
+from tests.conftest import request_session, register_device
 
 
 def test_metrics_exports_requests_and_bounds_endpoint_cardinality(
@@ -117,13 +117,7 @@ def test_live_session_gauges_and_events_change_without_http_polling(
         console.receive_json()
         sessions = []
         for device, socket in zip(devices, sockets):
-            console.send_json(
-                {
-                    "type": "session_start_request",
-                    "deviceId": device["device_id"],
-                    "devicePassword": "password-device",
-                }
-            )
+            request_session(console, device["device_id"], "password-device")
             sessions.append(socket.receive_json()["sessionId"])
             assert console.receive_json()["type"] == "session_started"
         assert metrics.registry.get_sample_value("active_sessions") == 2
@@ -219,13 +213,7 @@ def test_failed_session_delivery_does_not_report_started_or_leave_route(
             with patch.object(
                 manager, "send_to_device", new=AsyncMock(return_value=False)
             ):
-                console.send_json(
-                    {
-                        "type": "session_start_request",
-                        "deviceId": device["device_id"],
-                        "devicePassword": "password-device",
-                    }
-                )
+                request_session(console, device["device_id"], "password-device")
                 response = console.receive_json()
                 assert response["type"] == "session_error"
                 assert response["code"] == "DEVICE_OFFLINE"

@@ -16,7 +16,6 @@ python -m pip install --upgrade 'pip>=26.2'
 python -m pip install --require-hashes -r requirements.lock
 python -m pip install --no-deps -e .
 cp .env.example .env
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Copy `.env.example` only when setting up a new environment. Keep an existing `.env` when restarting or updating the app. If pip needs to compile `cryptography` from source, Rust and OpenSSL build dependencies are required.
@@ -30,10 +29,23 @@ py -3.12 -m venv .venv
 python -m pip install --upgrade 'pip>=26.2'
 python -m pip install -e .
 Copy-Item .env.example .env
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 The runtime lock is generated for Python 3.12 on Unix. The Windows setup installs dependencies from `pyproject.toml` directly.
+
+On every platform, generate a signing key once:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Save the result as `MYDESK_SECRET_KEY` in `.env`, then start the server:
+
+```bash
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The key is required in all environments, including development. Missing, blank or short keys and the old development placeholder prevent startup. Keep the generated key across restarts. When upgrading an installation that used the old placeholder, replace it before restarting; changing the key invalidates existing access tokens.
 
 Open [the console](http://localhost:8000/) on the server computer. The default setup uses SQLite in `Server/mydesk.db` and an in-memory rate limiter, so Docker and Redis are not required. Use `--host 127.0.0.1` if access is only needed from the computer itself.
 
@@ -44,6 +56,8 @@ After the initial setup, activate the virtual environment and run the same Uvico
 Enter a username and a strong password in the console, then create the first owner account. Email is optional. Usernames allow 3–30 letters, numbers or underscores. Account passwords need at least 8 characters, uppercase and lowercase letters, a number and a symbol. Weak, common and breached passwords are rejected.
 
 Log in, generate a pairing code and follow the [Android setup guide](../Android/README.md). The code is single-use and expires after 10 minutes by default. Set a separate device password in the app and use that password to open sessions from the console.
+
+Opening a device session requires browser Web Crypto: open the console over HTTPS or on `localhost`. Plain HTTP at a LAN IP does not provide this browser capability.
 
 For a phone on the same network, use `http://<computer-lan-ip>:8000` in the app and allow port 8000 through the computer's firewall. For the Android Studio emulator, use `http://10.0.2.2:8000`. Local HTTP requires a debug build of the Android app.
 
@@ -63,7 +77,7 @@ Settings use the `MYDESK_` prefix and are read from the environment or `.env` in
 | --- | --- | --- |
 | `MYDESK_ENVIRONMENT` | `dev` | Select `dev`, `staging` or `prod`. |
 | `MYDESK_DATABASE_URL` | `sqlite+pysqlite:///./mydesk.db` | Database connection. PostgreSQL uses the synchronous `postgresql+psycopg2` driver. |
-| `MYDESK_SECRET_KEY` | Development placeholder | Signing key for access tokens. Use a random secret outside development. |
+| `MYDESK_SECRET_KEY` | None; required | Signing key for access tokens. Configure a random secret of at least 32 characters in every environment. |
 | `MYDESK_CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:8000` | Allowed browser origins, separated by commas. |
 | `MYDESK_ACCESS_TOKEN_TTL_MINUTES` | `60` | Access token lifetime. |
 | `MYDESK_REFRESH_TOKEN_TTL_DAYS` | `30` | Maximum login session lifetime. |
@@ -73,6 +87,7 @@ Settings use the `MYDESK_` prefix and are read from the environment or `.env` in
 | `MYDESK_MAX_WEBSOCKET_CONNECTIONS` | `1000` | Total device and console connections, including pending handshakes. |
 | `MYDESK_RATE_LIMIT_WS_UPGRADE` | `30` | WebSocket handshake attempts per IP per minute, shared between both endpoints. |
 | `MYDESK_RATE_LIMIT_WS_CONTROL` | `600` | Control messages per minute per console owner or device. |
+| `MYDESK_RATE_LIMIT_WS_CONTROL_PER_SECOND` | `30` | Control messages per connection in a rolling second, checked before shared storage, database queries or JSON parsing. |
 | `MYDESK_MAX_SCREEN_FRAMES_PER_SECOND` | `30` | Frames allowed per device in a rolling second. |
 | `MYDESK_MAX_SCREEN_BYTES_PER_SECOND` | `10000000` | Screen bytes allowed per device in a rolling second; maximum packet size is 5 MB. |
 | `MYDESK_MONITORING_TOKEN` | Empty | Independent bearer token for metrics and detailed health. Empty disables access. |
@@ -82,7 +97,17 @@ The password breach check needs access to `api.pwnedpasswords.com`. If the servi
 
 Device-list requests share a 30-per-minute account budget across HTTP and WebSocket. Exceeding connection, control-message or streaming budgets closes the WebSocket with code `4429`; rate-limit storage failure closes it with `1013`. These codes allow Android to reconnect without discarding its pairing.
 
+Each console and device connection also has a local control-message limiter. Malformed messages count, including unexpected binary messages sent by consoles. Device screen frames use their separate frame/byte budgets. These local resource limits remain active when shared rate limiting is disabled in development. Reconnecting resets the local window but does not reset the shared account/device budget.
+
+WebSocket writes time out after 5 seconds if the transport stalls. Session cleanup is committed before notifying peers, so a slow connection cannot hold database locks during disconnection.
+
+Device session authentication uses a [challenge-response proof](docs/device-authentication.md). The console clears the password field and sends a proof instead of the password. Challenges expire after 60 seconds and can be used once on the issuing console connection. HTTPS/WSS remains required in staging and production.
+
 Reusing a consumed refresh token revokes that login session and all its tokens. The console coordinates renewals across tabs with Web Locks and shares rotated credentials atomically. Use HTTPS or localhost for automatic renewal. When Web Locks are unavailable, or a renewal response is lost, sign in again; an uncertain renewal is not automatically replayed.
+
+Login sessions record a fingerprint of the client IP and User-Agent. A changed fingerprint is audited at refresh and becomes the new baseline; ordinary HTTP and WebSocket authentication does not compare it. This permits network and browser changes without forcing logout. The fingerprint is a diagnostic signal, not device authentication: a stolen bearer token can still be replayed while its session is valid. IP and User-Agent binding alone cannot reliably prevent this, as described in the [OWASP session guidance](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#binding-the-session-id-to-other-user-properties).
+
+HTTP responses include CSP, frame protection, `nosniff`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store` and a Permissions Policy disabling camera, microphone and geolocation in the console browser. HSTS is sent only over HTTPS. The production nginx configuration also applies these protections to redirects and proxy-generated errors, preserves the application's CSP without duplicate headers, and uses a restrictive CSP when the application supplies none.
 
 In staging and production, the server requires PostgreSQL, Redis, HTTPS, valid signing and encryption keys, explicit HTTPS origins and enabled security checks. Files in `/run/secrets` named after settings take precedence over environment variables and `.env`.
 
@@ -190,24 +215,30 @@ A fresh database is initialized automatically. Existing databases must already u
 
 Users, devices and account history survive restarts. Active remote sessions end when the server stops; devices reconnect and a new session can be opened from the console.
 
+Install `age` on the machine running the backup scripts (`apt-get install age` on Ubuntu or `brew install age` on macOS). Generate an identity with `age-keygen -o backup-identity.txt` on a trusted recovery machine and keep this private file separately from backups and the server. Obtain its public recipient with `age-keygen -y backup-identity.txt`.
+
 From `Server`, with the production Compose variables set:
 
 ```bash
+export MYDESK_BACKUP_AGE_RECIPIENT='age1...your-public-recipient...'
 ./scripts/backup.sh /absolute/path/to/backups
-./scripts/test-recovery.sh /absolute/path/to/backups/backup.sql.gz
+
+# Only restore/recovery checks need the separate private identity.
+export MYDESK_BACKUP_AGE_IDENTITY_FILE=/secure/path/backup-identity.txt
+./scripts/test-recovery.sh /absolute/path/to/backups/backup.sql.gz.age
 ```
 
-Use the actual file created by `backup.sh` for the recovery check. It restores into a temporary, separate PostgreSQL container. Backups are complete compressed SQL dumps, with daily retention of 7 days and weekly retention of 28 days by default.
+Use the actual file created by `backup.sh` for the recovery check. It restores into a temporary, separate PostgreSQL container. Backups are complete SQL dumps compressed and encrypted in a streaming pipeline with age (no plaintext backup is written to disk), with daily retention of 7 days and weekly retention of 28 days by default.
 
 For an actual restore, use an empty destination database and have the original encryption key and deployment secrets in place:
 
 ```bash
-./scripts/restore.sh /absolute/path/to/backups/backup.sql.gz
+./scripts/restore.sh /absolute/path/to/backups/backup.sql.gz.age
 ```
 
-The restore script stops the app, refuses a non-empty database and restarts the app after a successful restore. On failure, the app stays stopped. Keep a copy of database backups and the separately stored encryption key outside the server.
+Restore and recovery accept only encrypted archives. They authenticate and decompress-check the entire archive before contacting Docker, using a temporary directory accessible only to the current user, removed on exit. The temporary decrypted archive requires trusted local storage. After successful verification, the restore script stops the app, refuses a non-empty database and restarts the app after a successful restore. On failure, the app stays stopped. Keep a copy of database backups and the separately stored encryption key outside the server.
 
-The [systemd examples](ops/systemd) can schedule daily backups and weekly recovery checks. Set their installation paths and `/etc/mydesk/backup.env` before enabling the timers.
+The [systemd examples](ops/systemd) can schedule daily backups and weekly recovery checks. Set their installation paths and `/etc/mydesk/backup.env` before enabling the timers. That environment file must define `MYDESK_BACKUP_AGE_RECIPIENT`; the recovery job also needs `MYDESK_BACKUP_AGE_IDENTITY_FILE`. Keep the recovery identity on a separate trusted recovery host where possible. Losing that identity makes the archives unrecoverable. Retention applies only to `.sql.gz.age` archives.
 
 ## Health, logs and API
 
@@ -222,7 +253,7 @@ The [systemd examples](ops/systemd) can schedule daily backups and weekly recove
 | `/console/ws` | Console WebSocket connection. |
 | `/device/ws` | Android WebSocket connection. |
 
-Logs use JSON and include request IDs. Set `MYDESK_LOG_LEVEL` to control verbosity. Metrics collection is enabled by default, but access to `/metrics`, `/api/health/ready` and `/api/health/advanced` requires `Authorization: Bearer <MYDESK_MONITORING_TOKEN>`. Configure a separate random token of at least 32 characters; account access tokens do not grant monitoring access. With an empty monitoring token, these endpoints return 404 from the app. nginx rejects anonymous diagnostic requests with 401 before proxying them. `/api/health` remains public and the Docker health check keeps working without monitoring credentials.
+Application logs use JSON and include request IDs. nginx access logs contain method, path, status, size and client IP, excluding query strings and headers. Per-server nginx error logging is disabled because it cannot redact request URLs; use access status codes and application logs to investigate request failures. Global nginx startup/configuration diagnostics remain available. Set `MYDESK_LOG_LEVEL` to control verbosity. Metrics collection is enabled by default, but access to `/metrics`, `/api/health/ready` and `/api/health/advanced` requires `Authorization: Bearer <MYDESK_MONITORING_TOKEN>`. Configure a separate random token of at least 32 characters; account access tokens do not grant monitoring access. With an empty monitoring token, these endpoints return 404 from the app. nginx rejects anonymous diagnostic requests with 401 before proxying them. `/api/health` remains public and the Docker health check keeps working without monitoring credentials.
 
 The production Compose file accepts `MYDESK_MONITORING_TOKEN` from the deployment environment. Settings also support a mounted `/run/secrets/MYDESK_MONITORING_TOKEN` file, which takes precedence if you add it to your Compose secret mounts. Configure the same token in Prometheus using a protected credentials file; see the [alert setup](docs/alert-rules.md). Existing Prometheus installations must add this credential when upgrading. A tracing endpoint is optional: an empty `MYDESK_TRACING_ENDPOINT` sends no traces to an external collector.
 
@@ -230,7 +261,7 @@ The [Redis relay](docs/websocket-relay.md) is available for development only. St
 
 ## Tests
 
-With the virtual environment active, install the development tools and run the backend and console tests from `Server`. The console tests require Node.js.
+With the virtual environment active, install the development tools and run the backend and console tests from `Server`. The console tests require Node.js. Backup tests require `age` and `age-keygen`.
 
 ```bash
 python -m pip install -e '.[dev,security]'

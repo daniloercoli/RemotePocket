@@ -7,6 +7,7 @@ from threading import Barrier
 import httpx
 import jwt
 import pytest
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -24,7 +25,7 @@ from app.password_policy import (
 from app.security import hash_secret
 from app.session_management import SessionManager
 from app.timeutils import naive_utc, utc_now
-from tests.conftest import create_reset_token, register_device
+from tests.conftest import request_session, create_reset_token, register_device
 
 PASSWORD = "Violet!Harbor7Lantern"
 SECRET = "testing-only-secret-with-at-least-32-chars"
@@ -80,12 +81,15 @@ def test_production_rejects_insecure_configuration(change):
     values = dict(
         environment="prod",
         secret_key=SECRET,
+        encryption_key=Fernet.generate_key().decode(),
+        public_base_url="https://desk.example.com",
         database_url="postgresql+psycopg2://db/test",
         redis_url="redis://redis/0",
         cors_allowed_origins="https://desk.example.com",
         check_password_breaches=True,
         rate_limit_enabled=True,
     )
+    Settings(_env_file=None, **values)
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **(values | change))
 
@@ -508,13 +512,7 @@ def test_device_cannot_end_another_device_session_and_revoke_notifies_console(
             "/console/ws", subprotocols=["mydesk", "bearer." + owner_token]
         ) as console:
             console.receive_json()
-            console.send_json(
-                {
-                    "type": "session_start_request",
-                    "deviceId": first["device_id"],
-                    "devicePassword": "password-device",
-                }
-            )
+            request_session(console, first["device_id"], "password-device")
             sid = active.receive_json()["sessionId"]
             assert console.receive_json()["type"] == "session_started"
             for message in (
@@ -644,13 +642,7 @@ def test_restart_releases_interrupted_remote_session(client, owner_token, auth_h
         ):
             android.receive_json()
             console.receive_json()
-            console.send_json(
-                {
-                    "type": "session_start_request",
-                    "deviceId": device["device_id"],
-                    "devicePassword": "password-device",
-                }
-            )
+            request_session(console, device["device_id"], "password-device")
             assert android.receive_json()["type"] == "session_start"
             assert console.receive_json()["type"] == "session_started"
 
@@ -676,12 +668,11 @@ def test_concurrent_failed_logins_preserve_lockout_count(client):
         assert stored.failed_login_attempts == 5
         assert naive_utc(stored.locked_until) > utc_now()
     assert (
-        "locked"
-        in client.post(
+        client.post(
             "/api/auth/login",
             json={
                 "username": "alice",
                 "password": PASSWORD,
             },
-        ).json()["detail"]
+        ).json()["detail"] == "Invalid credentials"
     )

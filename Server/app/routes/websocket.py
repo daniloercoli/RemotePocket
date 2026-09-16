@@ -11,15 +11,17 @@ from sqlalchemy.orm import Session
 from app.audit import write_audit
 from app.authentication import authenticate_user
 from app.auth_service import AuthService
+from app.device_auth import DeviceChallenges, verify_proof
 from app.models import Device, RemoteSession, User
 from app.routes.devices import serialize_device
 from app.screen_frames import parse_screen_frame_header
-from app.security import generate_id, hash_secret, verify_password
+from app.security import generate_id, hash_secret
 from app.timeutils import utc_now
 from app.rate_limiting import enforce_limit
 from app.websocket_validation import parse_control
 from app.websocket_limits import (
     FrameBudget,
+    WebSocketRateLimiter,
     allow_control,
     allow_upgrade,
     reject_connection,
@@ -44,46 +46,59 @@ def _db(websocket: WebSocket) -> Session:
     return websocket.app.state.SessionLocal()
 
 
-async def _end_session(
+async def _end_sessions(
     db: Session,
     websocket: WebSocket,
-    session: RemoteSession,
+    session_ids: list[str],
     reason: str,
     *,
     notify_device: bool = True,
     notify_console: bool = True,
 ) -> None:
-    now = utc_now()
-    session.status = "ended"
-    session.ended_at = now
-    session.end_reason = reason
-
-    device = db.get(Device, session.device_id)
-    if device and device.revoked_at is None:
-        device.status = (
-            "online"
-            if websocket.app.state.ws_manager.is_device_online(device.id)
-            else "offline"
-        )
-
-    write_audit(
-        db,
-        "session_closed",
-        owner_id=session.owner_id,
-        device_id=session.device_id,
-        session_id=session.id,
-        payload={"reason": reason},
-    )
-    db.commit()
-
     manager = websocket.app.state.ws_manager
-    route = manager.get_route(session.id)
-    manager.unbind_session(session.id)
-    message = {"type": "session_end", "sessionId": session.id, "reason": reason}
-    if notify_device and device is not None:
-        await manager.send_to_device(device.id, message)
-    if notify_console and route is not None:
-        await manager.send_to_console(route.console_connection_id, message)
+    now = utc_now()
+    notifications = []
+    for session_id in session_ids:
+        session = db.get(RemoteSession, session_id)
+        if session is None or session.status != "in_session":
+            continue
+        session.status = "ended"
+        session.ended_at = now
+        session.end_reason = reason
+        device = db.get(Device, session.device_id)
+        if device and device.revoked_at is None:
+            device.status = (
+                "online" if manager.is_device_online(device.id) else "offline"
+            )
+        write_audit(
+            db,
+            "session_closed",
+            owner_id=session.owner_id,
+            device_id=session.device_id,
+            session_id=session.id,
+            payload={"reason": reason},
+        )
+        notifications.append(
+            (
+                session.device_id,
+                session.console_connection_id,
+                {
+                    "type": "session_end",
+                    "sessionId": session.id,
+                    "reason": reason,
+                },
+            )
+        )
+    # Persist the entire cleanup and release DB locks before a peer can block I/O.
+    db.commit()
+    for session_id in session_ids:
+        if manager.get_route(session_id) is not None:
+            manager.unbind_session(session_id)
+    for device_id, connection_id, message in notifications:
+        if notify_device:
+            await manager.send_to_device(device_id, message)
+        if notify_console:
+            await manager.send_to_console(connection_id, message)
 
 
 @router.websocket("/device/ws")
@@ -104,17 +119,18 @@ async def _serve_device(websocket: WebSocket, db: Session):
     device_id = websocket.query_params.get("device_id")
     token = _bearer_token(websocket)
     frame_budget = FrameBudget(websocket.app.state.settings)
+    control_limiter = WebSocketRateLimiter(
+        websocket.app.state.settings.rate_limit_ws_control_per_second
+    )
 
     try:
         device = db.get(Device, device_id) if device_id else None
         if device is None or token is None or device.revoked_at is not None:
-            logger.warning(f"Device connection rejected: device_id={device_id}")
+            logger.warning("Device connection rejected: invalid credentials")
             await websocket.close(code=4401)
             return
         if device.token_hash != hash_secret(token):
-            logger.warning(
-                f"Device connection rejected: invalid token for device_id={device_id}"
-            )
+            logger.warning("Device connection rejected: invalid token")
             await websocket.close(code=4401)
             return
 
@@ -185,7 +201,9 @@ async def _serve_device(websocket: WebSocket, db: Session):
                 continue
 
             # Binary frames use the live route; only control messages need database state.
-            if not await allow_control(websocket, "ws-device-control", device_id):
+            if not await allow_control(
+                websocket, "ws-device-control", device_id, control_limiter
+            ):
                 break
             device = db.get(Device, device_id, populate_existing=True)
             if device is None or device.revoked_at is not None:
@@ -253,10 +271,10 @@ async def _serve_device(websocket: WebSocket, db: Session):
                     logger.info(
                         f"Session end requested by device: session_id={session.id}"
                     )
-                    await _end_session(
+                    await _end_sessions(
                         db,
                         websocket,
-                        session,
+                        [session.id],
                         message.get("reason") or "device_closed",
                         notify_device=False,
                     )
@@ -278,7 +296,6 @@ async def _serve_device(websocket: WebSocket, db: Session):
 
 async def _cleanup_device(db, websocket, device_id, manager):
     ended_session_ids = manager.disconnect_device(device_id)
-    now = utc_now()
     if device_id:
         device = db.get(Device, device_id)
         if device and device.revoked_at is None:
@@ -286,29 +303,9 @@ async def _cleanup_device(db, websocket, device_id, manager):
             write_audit(
                 db, "device_offline", owner_id=device.owner_id, device_id=device.id
             )
-    for session_id in ended_session_ids:
-        session = db.get(RemoteSession, session_id)
-        if session and session.status == "in_session":
-            session.status = "ended"
-            session.ended_at = now
-            session.end_reason = "device_disconnected"
-            write_audit(
-                db,
-                "session_closed",
-                owner_id=session.owner_id,
-                device_id=session.device_id,
-                session_id=session.id,
-                payload={"reason": "device_disconnected"},
-            )
-            await manager.send_to_console(
-                session.console_connection_id,
-                {
-                    "type": "session_end",
-                    "sessionId": session.id,
-                    "reason": "device_disconnected",
-                },
-            )
-    db.commit()
+    await _end_sessions(
+        db, websocket, ended_session_ids, "device_disconnected", notify_device=False
+    )
 
 
 @router.websocket("/console/ws")
@@ -326,6 +323,10 @@ async def console_ws(websocket: WebSocket):
 
 async def _serve_console(websocket: WebSocket, db: Session):
     manager = websocket.app.state.ws_manager
+    challenges = DeviceChallenges(websocket.app.state.settings.max_remote_sessions)
+    control_limiter = WebSocketRateLimiter(
+        websocket.app.state.settings.rate_limit_ws_control_per_second
+    )
     token = _bearer_token(websocket)
     user = authenticate_user(db, token or "", websocket.app.state.settings)
 
@@ -357,6 +358,21 @@ async def _serve_console(websocket: WebSocket, db: Session):
             # End the read transaction so credential revocations are visible on
             # PostgreSQL as well as SQLite, including on idle connections.
             db.rollback()
+            try:
+                incoming = await asyncio.wait_for(
+                    websocket.receive(), timeout=AUTH_RECHECK_SECONDS
+                )
+            except TimeoutError:
+                incoming = None
+            if incoming is not None:
+                if incoming["type"] == "websocket.disconnect":
+                    raise WebSocketDisconnect(incoming.get("code", 1000))
+                if not await allow_control(
+                    websocket, "ws-console-control", owner_id, control_limiter
+                ):
+                    break
+            # Recheck once per accepted message or idle timeout, after the cheap
+            # connection limit so a burst cannot trigger extra database work.
             user = authenticate_user(db, token or "", websocket.app.state.settings)
             if user is None:
                 logger.warning(
@@ -364,31 +380,15 @@ async def _serve_console(websocket: WebSocket, db: Session):
                 )
                 await websocket.close(code=4401)
                 break
-            db.rollback()
-            try:
-                incoming = await asyncio.wait_for(
-                    websocket.receive(), timeout=AUTH_RECHECK_SECONDS
-                )
-                if incoming["type"] == "websocket.disconnect":
-                    raise WebSocketDisconnect(incoming.get("code", 1000))
-                if not await allow_control(websocket, "ws-console-control", owner_id):
-                    break
-                message = parse_control(incoming.get("text", ""))
-            except TimeoutError:
+            if incoming is None:
                 continue
+            try:
+                message = parse_control(incoming.get("text", ""))
             except (TypeError, ValueError):
                 await websocket.send_json(
                     {"type": "error_event", "code": "INVALID_MESSAGE"}
                 )
                 continue
-            db.rollback()
-            user = authenticate_user(db, token or "", websocket.app.state.settings)
-            if user is None:
-                logger.warning(
-                    f"Console authentication failed after timeout: connection_id={connection_id}"
-                )
-                await websocket.close(code=4401)
-                break
             message_type = message.get("type")
 
             if message_type == "heartbeat":
@@ -421,10 +421,18 @@ async def _serve_console(websocket: WebSocket, db: Session):
                         "devices": [serialize_device(device) for device in devices],
                     }
                 )
-            elif message_type == "session_start_request":
+            elif message_type in {"session_challenge_request", "session_start_request"}:
                 logger.debug(f"Session start request: connection_id={connection_id}")
                 try:
-                    enforce_limit(websocket.app, "session-start", user.id, 5, 60)
+                    enforce_limit(
+                        websocket.app,
+                        "session-challenge"
+                        if message_type == "session_challenge_request"
+                        else "session-start",
+                        user.id,
+                        5,
+                        60,
+                    )
                 except HTTPException:
                     await websocket.send_json(
                         {
@@ -434,7 +442,14 @@ async def _serve_console(websocket: WebSocket, db: Session):
                         }
                     )
                     continue
-                await _handle_session_start(db, websocket, user, connection_id, message)
+                if message_type == "session_challenge_request":
+                    await _handle_session_challenge(
+                        db, websocket, user, message, challenges
+                    )
+                else:
+                    await _handle_session_start(
+                        db, websocket, user, connection_id, message, challenges
+                    )
             elif message_type in {
                 "input_tap",
                 "input_swipe",
@@ -476,10 +491,10 @@ async def _serve_console(websocket: WebSocket, db: Session):
                     logger.info(
                         f"Session end requested by console: session_id={session.id}"
                     )
-                    await _end_session(
+                    await _end_sessions(
                         db,
                         websocket,
-                        session,
+                        [session.id],
                         message.get("reason") or "user_closed",
                         notify_console=True,
                     )
@@ -494,41 +509,50 @@ async def _serve_console(websocket: WebSocket, db: Session):
     except WebSocketDisconnect:
         logger.info(f"Console WebSocket disconnected: connection_id={connection_id}")
     finally:
+        challenges.pending.clear()
         manager.release_console_reservation(connection_id)
         ended_session_ids = (
             manager.disconnect_console(connection_id)
             if connection_id in manager.console_connections
             else []
         )
-        now = utc_now()
-        for session_id in ended_session_ids:
-            session = db.get(RemoteSession, session_id)
-            if session and session.status == "in_session":
-                session.status = "ended"
-                session.ended_at = now
-                session.end_reason = "console_disconnected"
-                device = db.get(Device, session.device_id)
-                if device and device.revoked_at is None:
-                    device.status = (
-                        "online" if manager.is_device_online(device.id) else "offline"
-                    )
-                write_audit(
-                    db,
-                    "session_closed",
-                    owner_id=session.owner_id,
-                    device_id=session.device_id,
-                    session_id=session.id,
-                    payload={"reason": "console_disconnected"},
-                )
-                await manager.send_to_device(
-                    session.device_id,
-                    {
-                        "type": "session_end",
-                        "sessionId": session.id,
-                        "reason": "console_disconnected",
-                    },
-                )
-        db.commit()
+        await _end_sessions(
+            db,
+            websocket,
+            ended_session_ids,
+            "console_disconnected",
+            notify_console=False,
+        )
+
+
+async def _handle_session_challenge(db, websocket, user, message, challenges):
+    device_id = message["deviceId"]
+    device = db.get(Device, device_id)
+    if device is None or device.owner_id != user.id or device.revoked_at is not None:
+        response = {
+            "type": "session_error",
+            "deviceId": device_id,
+            "code": "DEVICE_NOT_FOUND",
+        }
+    elif not websocket.app.state.ws_manager.is_device_online(device_id):
+        response = {
+            "type": "session_error",
+            "deviceId": device_id,
+            "code": "DEVICE_OFFLINE",
+        }
+    else:
+        challenge = challenges.issue(device, message["clientNonce"])
+        response = (
+            challenge.response()
+            if challenge
+            else {
+                "type": "session_error",
+                "deviceId": device_id,
+                "code": "CHALLENGE_LIMIT",
+            }
+        )
+    db.rollback()
+    await websocket.send_json(response)
 
 
 async def _handle_session_start(
@@ -537,13 +561,14 @@ async def _handle_session_start(
     user: User,
     connection_id: str,
     message: dict[str, Any],
+    challenges: DeviceChallenges,
 ) -> None:
     logger.info(
         f"Handling session start: user_id={user.id}, connection_id={connection_id}"
     )
     manager = websocket.app.state.ws_manager
     device_id = message["deviceId"]
-    device_password = message["devicePassword"]
+    challenge = challenges.consume(device_id, message["challengeId"])
     # Serialize quota checks and insertion across all connections for this owner.
     # Every branch releases the write lock before awaiting network I/O.
     AuthService(db, websocket.app.state.settings)._lock_user(user.id)
@@ -601,7 +626,17 @@ async def _handle_session_start(
             }
         )
         return
-    if not verify_password(device_password, device.access_password_hash):
+    server_proof = (
+        verify_proof(
+            device.access_auth_stored_key,
+            device.access_auth_server_key,
+            challenge.transcript,
+            message["proof"],
+        )
+        if challenge
+        else None
+    )
+    if server_proof is None:
         write_audit(
             db,
             "session_failed",
@@ -669,10 +704,10 @@ async def _handle_session_start(
         {"type": "session_start", "sessionId": session.id, "requestedBy": "owner"},
     )
     if not delivered:
-        await _end_session(
+        await _end_sessions(
             db,
             websocket,
-            session,
+            [session.id],
             "device_unavailable",
             notify_device=False,
             notify_console=False,
@@ -695,5 +730,6 @@ async def _handle_session_start(
             "sessionId": session.id,
             "deviceId": device.id,
             "status": "in_session",
+            "serverProof": server_proof,
         }
     )

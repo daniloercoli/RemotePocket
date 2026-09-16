@@ -10,12 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.audit import write_audit
 from app.dependencies import get_current_user, get_db
+from app.device_auth import credentials
 from app.models import Device, PairingCode, User
 from app.security import (
     generate_device_token,
     generate_id,
     generate_pairing_code,
-    hash_password,
     hash_secret,
 )
 from app.timeutils import utc_now
@@ -90,7 +90,7 @@ def pair_device(payload: PairDeviceRequest, db: Annotated[Session, Depends(get_d
         owner_id=pairing.owner_id,
         name=payload.name,
         token_hash=hash_secret(device_token),
-        access_password_hash=hash_password(payload.device_password),
+        **credentials(payload.device_password),
         status="offline",
     )
 

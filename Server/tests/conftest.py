@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import os
+import base64
+import hashlib
+import hmac
+import secrets
 
 import pytest
 from fastapi.testclient import TestClient
@@ -105,3 +109,42 @@ def register_device(
 @pytest.fixture
 def monitoring_headers(client):
     return {"Authorization": "Bearer " + client.app.state.settings.monitoring_token}
+
+
+def device_proof(challenge, password="password-device"):
+    """Independent client implementation for HTTP/WS integration tests."""
+    salted = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        base64.b64decode(challenge["salt"]),
+        challenge["iterations"],
+    )
+    client_key = hmac.digest(salted, b"Client Key", "sha256")
+    name = challenge["deviceId"].replace("=", "=3D").replace(",", "=2C")
+    nonce = challenge["nonce"]
+    transcript = (
+        f"n={name},r={challenge['clientNonce']},r={nonce},s={challenge['salt']},"
+        f"i={challenge['iterations']},c=biws,r={nonce}"
+    ).encode()
+    signature = hmac.digest(hashlib.sha256(client_key).digest(), transcript, "sha256")
+    return {
+        "type": "session_start_request",
+        "deviceId": challenge["deviceId"],
+        "challengeId": challenge["challengeId"],
+        "proof": base64.b64encode(
+            bytes(a ^ b for a, b in zip(client_key, signature))
+        ).decode(),
+    }
+
+
+def request_session(websocket, device_id, password="password-device"):
+    websocket.send_json(
+        {
+            "type": "session_challenge_request",
+            "deviceId": device_id,
+            "clientNonce": secrets.token_hex(32),
+        }
+    )
+    challenge = websocket.receive_json()
+    assert challenge["type"] == "session_challenge", challenge
+    websocket.send_json(device_proof(challenge, password))

@@ -22,10 +22,23 @@ python -m pip install --upgrade 'pip>=26.2'
 python -m pip install --require-hashes -r requirements.lock
 python -m pip install --no-deps -e .
 cp .env.example .env
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Copy `.env.example` only on the first setup. Keep your existing `.env` on later runs.
+
+Generate a signing key once:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Save the result as `MYDESK_SECRET_KEY` in `.env`, then start the server:
+
+```bash
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The key is required even in development. Empty or short keys and the old development placeholder prevent startup. Keep the generated key across restarts; replace the old placeholder if upgrading an existing installation.
 
 Open [the console](http://localhost:8000/) on the computer running the server. Enter a username and a strong password, then use the button to create the first owner account. Email is optional. On later visits, log in with the same account.
 
@@ -72,6 +85,8 @@ Use the right server URL in the app:
 Pairing codes are single-use and expire after 10 minutes by default. Keep the device password: it is separate from your account password and is needed to open remote sessions.
 
 The console supports taps, swipes, text input and the Back, Home and Recent apps buttons. Keep the device unlocked. You can close a session from the console or pause control from the Android app.
+
+Open the console over HTTPS or on `localhost`: device session authentication uses browser Web Crypto to answer a one-time challenge without sending the device password over WebSocket. Plain HTTP at a LAN IP cannot open device sessions.
 
 ## More information
 

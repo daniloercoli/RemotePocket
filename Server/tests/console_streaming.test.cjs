@@ -62,9 +62,12 @@ function consoleApp() {
   vm.runInContext(source, scope);
   vm.runInContext("state.token = 'test'; connectConsoleWs();", scope);
   const ws = vm.runInContext("state.ws", scope);
-  const start = (socket = ws, sessionId = "session") => socket.deliver(JSON.stringify({
-    type: "session_started", sessionId, deviceId: "device",
-  }));
+  const start = (socket = ws, sessionId = "session") => {
+    vm.runInContext("state.pendingDeviceAuth.set('device', {ws: state.ws, serverProof: 'test-server-proof'})", scope);
+    return socket.deliver(JSON.stringify({
+      type: "session_started", sessionId, deviceId: "device", serverProof: "test-server-proof",
+    }));
+  };
   return { ws, scope, elements, blobs, revoked, start };
 }
 

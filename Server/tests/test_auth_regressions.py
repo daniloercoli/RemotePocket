@@ -55,7 +55,7 @@ def test_recovery_disabled_without_issuing_tokens(client, account):
 def test_http_failures_lock_account_and_preserve_audit(client, account):
     for _ in range(5):
         assert login(client, "wrong-password").status_code == 401
-    assert "locked" in login(client).json()["detail"]
+    assert login(client).json()["detail"] == "Invalid credentials"
     with client.app.state.SessionLocal() as db:
         user = db.get(User, account["id"])
         assert user.failed_login_attempts == 5

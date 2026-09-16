@@ -1,6 +1,5 @@
 """Validate untrusted control messages before querying or forwarding them."""
 
-import json
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
@@ -46,10 +45,17 @@ class DeviceList(Message):
     type: Literal["device_list_request"]
 
 
+class SessionChallenge(Message):
+    type: Literal["session_challenge_request"]
+    deviceId: Id
+    clientNonce: str = Field(pattern=r"^[a-f0-9]{64}$", min_length=64, max_length=64)
+
+
 class SessionStart(Message):
     type: Literal["session_start_request"]
     deviceId: Id
-    devicePassword: str = Field(min_length=1, max_length=200)
+    challengeId: Id
+    proof: str = Field(pattern=r"^[A-Za-z0-9+/]{43}=$", min_length=44, max_length=44)
 
 
 class Tap(Message):
@@ -96,6 +102,7 @@ CONSOLE = TypeAdapter(
     Annotated[
         Heartbeat
         | DeviceList
+        | SessionChallenge
         | SessionStart
         | SessionEnd
         | Tap
@@ -110,9 +117,8 @@ CONSOLE = TypeAdapter(
 def parse_control(raw, *, device=False):
     if not isinstance(raw, str) or len(raw.encode("utf-8")) > 64 * 1024:
         raise ValueError("Control message too large")
-    value = json.loads(raw)
     return (
         (DEVICE if device else CONSOLE)
-        .validate_python(value)
+        .validate_json(raw)
         .model_dump(exclude_none=True, by_alias=True)
     )

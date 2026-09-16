@@ -6,7 +6,7 @@ import struct
 from fastapi.testclient import TestClient
 import pytest
 
-from tests.conftest import register_device
+from tests.conftest import request_session, register_device
 
 
 JPEG_BYTES = b"\xff\xd8\x00\xfe\xff\xd9"
@@ -87,13 +87,7 @@ def test_console_starts_session_and_relays_messages(
         ) as console_ws:
             assert console_ws.receive_json()["type"] == "console_registered"
 
-            console_ws.send_json(
-                {
-                    "type": "session_start_request",
-                    "deviceId": device["device_id"],
-                    "devicePassword": "password-device",
-                }
-            )
+            request_session(console_ws, device["device_id"], "password-device")
 
             start_for_device = device_ws.receive_json()
             assert start_for_device["type"] == "session_start"
@@ -155,6 +149,7 @@ def test_console_starts_session_and_relays_messages(
         struct.pack("<I", 1) + b"\xff" + JPEG_BYTES,
         struct.pack("<I", 1) + b"{" + JPEG_BYTES,
         struct.pack("<I", 2) + b"[]" + JPEG_BYTES,
+        struct.pack("<I", 4001) + b"[" * 2000 + b"0" + b"]" * 2000 + JPEG_BYTES,
         binary_frame("session", type="heartbeat"),
         binary_frame("session", format="png"),
         binary_frame(""),
@@ -198,13 +193,7 @@ def test_device_cannot_inject_frames_into_another_devices_session(
         assert target_ws.receive_json()["type"] == "device_registered"
         assert other_ws.receive_json()["type"] == "device_registered"
         assert console_ws.receive_json()["type"] == "console_registered"
-        console_ws.send_json(
-            {
-                "type": "session_start_request",
-                "deviceId": target["device_id"],
-                "devicePassword": "password-device",
-            }
-        )
+        request_session(console_ws, target["device_id"], "password-device")
         session_id = target_ws.receive_json()["sessionId"]
         assert console_ws.receive_json()["type"] == "session_started"
         other_ws.send_bytes(binary_frame(session_id, frameId=999))

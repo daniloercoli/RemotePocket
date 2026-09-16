@@ -1,5 +1,7 @@
 """ASGI request context, access logs and metrics, including failures and WebSockets."""
 
+import asyncio
+from contextlib import suppress
 import logging
 import re
 import time
@@ -13,6 +15,7 @@ from app.error_handlers import handle_error
 
 logger = logging.getLogger(__name__)
 REQUEST_ID = re.compile(r"[a-zA-Z0-9._-]{1,128}\Z")
+WEBSOCKET_SEND_TIMEOUT_SECONDS = 5
 
 
 def endpoint_name(scope):
@@ -86,6 +89,9 @@ class ObservabilityMiddleware:
                     response_headers["X-Content-Type-Options"] = "nosniff"
                     response_headers["X-Frame-Options"] = "DENY"
                     response_headers["Referrer-Policy"] = "no-referrer"
+                    response_headers["Permissions-Policy"] = (
+                        "camera=(), microphone=(), geolocation=()"
+                    )
                     response_headers["Content-Security-Policy"] = (
                         state.settings.content_security_policy
                     )
@@ -102,7 +108,12 @@ class ObservabilityMiddleware:
                 status = message.get("code", 1000)
                 if status == 4401:
                     metrics.record_auth_failure(connection_type)
-            await send(message)
+            if is_http:
+                await send(message)
+            else:
+                # Bound handshake, data and close writes, including direct replies.
+                async with asyncio.timeout(WEBSOCKET_SEND_TIMEOUT_SECONDS):
+                    await send(message)
 
         try:
             if shutdown.is_shutdown_initiated and scope["path"] not in {
@@ -136,7 +147,8 @@ class ObservabilityMiddleware:
                         response.headers["Vary"] = "Origin"
                     await response(scope, receive, observed_send)
                 elif not is_http:
-                    await observed_send({"type": "websocket.close", "code": 1011})
+                    with suppress(OSError, RuntimeError, TimeoutError):
+                        await observed_send({"type": "websocket.close", "code": 1011})
                 else:
                     raise
         finally:

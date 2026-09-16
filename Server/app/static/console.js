@@ -28,6 +28,7 @@ const state = {
   challenge: "",
   wsAuthRetried: false,
   pendingDevices: new Set(),
+  pendingDeviceAuth: new Map(),
   reconnectDelay: 1000,
   reconnectTimer: null,
   refreshPromise: null,
@@ -324,7 +325,7 @@ function connectConsoleWs() {
     if (event.data instanceof ArrayBuffer) {
       handleBinaryMessage(event.data);
     } else {
-      handleWsMessage(JSON.parse(event.data));
+      return handleWsMessage(JSON.parse(event.data));
     }
   };
 }
@@ -332,8 +333,16 @@ function connectConsoleWs() {
 function handleWsMessage(message) {
   if (message.type === "device_list") {
     renderDevices(message.devices);
+  } else if (message.type === "session_challenge") {
+    return answerDeviceChallenge(message);
   } else if (message.type === "session_started") {
-    state.pendingDevices.delete(message.deviceId);
+    const pending = state.pendingDeviceAuth.get(message.deviceId);
+    if (!pending || pending.ws !== state.ws || !pending.serverProof || pending.serverProof !== message.serverProof) {
+      state.ws?.close();
+      clearSession("Verifica del server fallita. Riconnetti la console.");
+      return;
+    }
+    forgetDeviceAuth(message.deviceId);
     if (!state.sessions.has(message.sessionId)) {
       state.sessions.set(message.sessionId, {sessionId: message.sessionId, deviceId: message.deviceId,
         frameWidth: 0, frameHeight: 0, frameId: -1, lastFrameUrl: null, closing: false});
@@ -346,7 +355,7 @@ function handleWsMessage(message) {
     closeSession(message.sessionId);
     log(`Sessione chiusa: ${message.reason}`);
   } else if (message.type === "session_error" || message.type === "error_event") {
-    state.pendingDevices.delete(message.deviceId);
+    forgetDeviceAuth(message.deviceId);
     const errorText = message.message || message.code || "Errore sessione";
     const card = Array.from($("devices").children || []).find(node => node.dataset.id === message.deviceId);
     if (card) card.querySelector("[data-error]").textContent = errorText;
@@ -454,6 +463,76 @@ function sendWs(message) {
   return true;
 }
 
+function forgetDeviceAuth(deviceId) {
+  const pending = state.pendingDeviceAuth.get(deviceId);
+  if (pending) {
+    pending.key = null;
+    clearTimeout(pending.timer);
+    state.pendingDeviceAuth.delete(deviceId);
+  }
+  state.pendingDevices.delete(deviceId);
+}
+
+function deviceAuthIsCurrent(deviceId, pending) {
+  return state.pendingDeviceAuth.get(deviceId) === pending &&
+    state.ws === pending.ws && state.authEpoch === pending.epoch;
+}
+
+function failDeviceAuth(deviceId, pending, message) {
+  if (!deviceAuthIsCurrent(deviceId, pending)) return;
+  handleWsMessage({type: "session_error", deviceId, message});
+  const card = Array.from($("devices").children || []).find(node => node.dataset.id === deviceId);
+  if (card) card.querySelector("[data-start]").disabled = false;
+}
+
+async function startDeviceSession(deviceId, field) {
+  if (state.pendingDevices.has(deviceId)) return;
+  if (!globalThis.crypto?.subtle) {
+    field.value = "";
+    throw new Error("Per aprire una sessione usa la console su HTTPS o localhost.");
+  }
+  const bytes = new TextEncoder().encode(field.value);
+  field.value = "";
+  const pending = {ws: state.ws, epoch: state.authEpoch, clientNonce: DeviceAuth.nonce(), key: null};
+  state.pendingDevices.add(deviceId);
+  state.pendingDeviceAuth.set(deviceId, pending);
+  pending.timer = setTimeout(() => failDeviceAuth(deviceId, pending, "Autenticazione scaduta. Riprova."), 60000);
+  try {
+    const key = await DeviceAuth.importPassword(bytes);
+    if (!deviceAuthIsCurrent(deviceId, pending)) return;
+    pending.key = key;
+    if (!sendWs({type: "session_challenge_request", deviceId, clientNonce: pending.clientNonce})) {
+      failDeviceAuth(deviceId, pending, "WebSocket console non connessa.");
+    }
+  } catch {
+    failDeviceAuth(deviceId, pending, "Autenticazione dispositivo non disponibile.");
+  } finally { bytes.fill(0); }
+}
+
+async function answerDeviceChallenge(message) {
+  const pending = state.pendingDeviceAuth.get(message.deviceId);
+  if (!pending || !pending.key || pending.busy || !deviceAuthIsCurrent(message.deviceId, pending)) return;
+  pending.busy = true;
+  const key = pending.key;
+  pending.key = null;
+  try {
+    if (message.clientNonce !== pending.clientNonce || !/^[a-f0-9]{128}$/.test(message.nonce) ||
+        !message.nonce.startsWith(pending.clientNonce) || message.iterations !== 600000 ||
+        typeof message.challengeId !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(message.challengeId)) {
+      throw new Error("Invalid challenge");
+    }
+    const result = await DeviceAuth.proof(key, message);
+    if (!deviceAuthIsCurrent(message.deviceId, pending)) return;
+    pending.serverProof = result.serverProof;
+    if (!sendWs({type: "session_start_request", deviceId: message.deviceId,
+      challengeId: message.challengeId, proof: result.proof})) {
+      failDeviceAuth(message.deviceId, pending, "WebSocket console non connessa.");
+    }
+  } catch {
+    failDeviceAuth(message.deviceId, pending, "Challenge dispositivo non valida.");
+  }
+}
+
 function clearFrame() {
   state.frameWidth = 0;
   state.frameHeight = 0;
@@ -516,6 +595,7 @@ function closeSession(id) {
 function clearSession(reason) {
   for (const session of state.sessions.values()) if (session.lastFrameUrl) URL.revokeObjectURL(session.lastFrameUrl);
   state.sessions.clear();
+  for (const deviceId of state.pendingDeviceAuth.keys()) forgetDeviceAuth(deviceId);
   state.pendingDevices.clear();
   state.activeSessionId = "";
   showSession();
@@ -545,12 +625,11 @@ $("devices").onclick = async (event) => {
   const startId = event.target.dataset.start;
   const revokeId = event.target.dataset.revoke;
   if (startId) {
-    const password = document.querySelector(`[data-password="${startId}"]`).value;
-    if (sendWs({ type: "session_start_request", deviceId: startId, devicePassword: password })) {
-      state.pendingDevices.add(startId);
-      event.target.disabled = true;
-      event.target.closest(".device-card").querySelector("[data-error]").textContent = "Apertura in corso…";
-    }
+    event.target.disabled = true;
+    const error = event.target.closest(".device-card").querySelector("[data-error]");
+    error.textContent = "Apertura in corso…";
+    try { await startDeviceSession(startId, document.querySelector(`[data-password="${startId}"]`)); }
+    catch (failure) { error.textContent = failure.message; event.target.disabled = false; }
   }
   const renameId = event.target.dataset.rename;
   if (renameId) {

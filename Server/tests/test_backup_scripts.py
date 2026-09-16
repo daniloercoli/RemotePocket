@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import time
 
 import pytest
@@ -48,6 +49,13 @@ if "-f" in args:
     }
     env.pop("BACKUP_NOTIFICATION_WEBHOOK", None)
     env.pop("MYDESK_BACKUP_TEST_RECOVERY", None)
+    assert shutil.which("age") and shutil.which("age-keygen"), "Install age for backup tests"
+    identity = tmp_path / "identity.txt"
+    subprocess.run(["age-keygen", "-o", str(identity)], check=True, capture_output=True)
+    recipient = subprocess.check_output(["age-keygen", "-y", str(identity)], text=True).strip()
+    env["MYDESK_BACKUP_AGE_RECIPIENT"] = recipient
+    env["MYDESK_BACKUP_AGE_IDENTITY_FILE"] = str(identity)
+    env["TMPDIR"] = str(tmp_path)
     return env
 
 
@@ -70,8 +78,12 @@ def calls(env):
     )
 
 
-def dump(path):
-    path.write_bytes(gzip.compress(b"SELECT 1;\n"))
+def dump(path, env):
+    result = subprocess.run(
+        ["age", "-r", env["MYDESK_BACKUP_AGE_RECIPIENT"]],
+        input=gzip.compress(b"SELECT 1;\n"), capture_output=True, check=True,
+    )
+    path.write_bytes(result.stdout)
     return path
 
 
@@ -79,15 +91,15 @@ def test_backup_retains_weekly_points_independently(tmp_path, shell_env):
     directory = tmp_path / "backups"
     directory.mkdir()
     for kind, days in (("daily", 10), ("weekly", 10), ("weekly", 40), ("weekly", 2)):
-        path = dump(directory / f"mydesk_backup_old{days}_{kind}.sql.gz")
+        path = dump(directory / f"mydesk_backup_old{days}_{kind}.sql.gz.age", shell_env)
         stamp = time.time() - days * 86400
         os.utime(path, (stamp, stamp))
     result = run_script("backup.sh", directory, shell_env)
     assert result.returncode == 0, result.stderr
-    assert not (directory / "mydesk_backup_old10_daily.sql.gz").exists()
-    assert (directory / "mydesk_backup_old10_weekly.sql.gz").exists()
-    assert not (directory / "mydesk_backup_old40_weekly.sql.gz").exists()
-    assert len(list(directory.glob("*_daily.sql.gz"))) == 1
+    assert not (directory / "mydesk_backup_old10_daily.sql.gz.age").exists()
+    assert (directory / "mydesk_backup_old10_weekly.sql.gz.age").exists()
+    assert not (directory / "mydesk_backup_old40_weekly.sql.gz.age").exists()
+    assert len(list(directory.glob("*_daily.sql.gz.age"))) == 1
     assert not (directory / ".backup-lock").exists()
 
 
@@ -96,7 +108,7 @@ def test_failed_dump_keeps_old_backups_and_does_not_publish_partial_file(
 ):
     directory = tmp_path / "backups"
     directory.mkdir()
-    old = dump(directory / "mydesk_backup_old_daily.sql.gz")
+    old = dump(directory / "mydesk_backup_old_daily.sql.gz.age", shell_env)
     stamp = time.time() - 40 * 86400
     os.utime(old, (stamp, stamp))
     result = run_script("backup.sh", directory, {**shell_env, "FAIL_DUMP": "7"})
@@ -105,7 +117,7 @@ def test_failed_dump_keeps_old_backups_and_does_not_publish_partial_file(
 
 
 def test_recovery_is_isolated_and_propagates_sql_failure(tmp_path, shell_env):
-    backup = dump(tmp_path / "dump.sql.gz")
+    backup = dump(tmp_path / "dump.sql.gz.age", shell_env)
     result = run_script("test-recovery.sh", backup, {**shell_env, "FAIL_SQL": "2"})
     assert result.returncode != 0
     assert "Recovery test passed" not in result.stdout
@@ -124,7 +136,7 @@ def test_recovery_is_isolated_and_propagates_sql_failure(tmp_path, shell_env):
 def test_restore_refuses_nonempty_database_without_restarting_app(tmp_path, shell_env):
     result = run_script(
         "restore.sh",
-        dump(tmp_path / "dump.sql.gz"),
+        dump(tmp_path / "dump.sql.gz.age", shell_env),
         {**shell_env, "DESTINATION_RELATIONS": "3"},
     )
     assert result.returncode != 0
@@ -135,7 +147,7 @@ def test_restore_refuses_nonempty_database_without_restarting_app(tmp_path, shel
 
 def test_restore_sql_failure_does_not_restart_app(tmp_path, shell_env):
     result = run_script(
-        "restore.sh", dump(tmp_path / "dump.sql.gz"), {**shell_env, "FAIL_SQL": "2"}
+        "restore.sh", dump(tmp_path / "dump.sql.gz.age", shell_env), {**shell_env, "FAIL_SQL": "2"}
     )
     assert result.returncode != 0
     commands = calls(shell_env)
@@ -149,8 +161,55 @@ def test_restore_sql_failure_does_not_restart_app(tmp_path, shell_env):
 
 
 def test_corrupt_backup_does_not_stop_or_create_containers(tmp_path, shell_env):
-    invalid = tmp_path / "invalid.sql.gz"
+    invalid = tmp_path / "invalid.sql.gz.age"
     invalid.write_text("not gzip")
     for script in ("restore.sh", "test-recovery.sh"):
         assert run_script(script, invalid, shell_env).returncode != 0
     assert calls(shell_env) == []
+
+
+def test_backup_encrypted_roundtrip_and_permissions(tmp_path, shell_env):
+    directory = tmp_path / "backups"
+    result = run_script("backup.sh", directory, shell_env)
+    assert result.returncode == 0, result.stderr
+    files = list(directory.iterdir())
+    assert len(files) == 1 and files[0].name.endswith(".sql.gz.age")
+    assert files[0].stat().st_mode & 0o777 == 0o600
+    plaintext = subprocess.check_output([
+        "age", "-d", "-i", shell_env["MYDESK_BACKUP_AGE_IDENTITY_FILE"], str(files[0]),
+    ])
+    assert b"CREATE TABLE users" in gzip.decompress(plaintext)
+    assert b"CREATE TABLE" not in files[0].read_bytes()
+    assert run_script("restore.sh", files[0], shell_env).returncode == 0
+    assert not list(tmp_path.glob("mydesk-decrypt.*"))
+
+
+@pytest.mark.parametrize("fault", ["wrong_key", "tampered", "truncated", "missing_key"])
+@pytest.mark.parametrize("script", ["restore.sh", "test-recovery.sh"])
+def test_decryption_failure_precedes_docker(tmp_path, shell_env, fault, script):
+    backup = dump(tmp_path / "dump.sql.gz.age", shell_env)
+    if fault == "wrong_key":
+        identity = tmp_path / "wrong-key.txt"
+        subprocess.run(["age-keygen", "-o", str(identity)], check=True, capture_output=True)
+        shell_env["MYDESK_BACKUP_AGE_IDENTITY_FILE"] = str(identity)
+    elif fault == "missing_key":
+        shell_env.pop("MYDESK_BACKUP_AGE_IDENTITY_FILE")
+    elif fault == "truncated":
+        backup.write_bytes(backup.read_bytes()[:-10])
+    else:
+        data = bytearray(backup.read_bytes())
+        data[-1] ^= 1
+        backup.write_bytes(data)
+    result = run_script(script, backup, shell_env)
+    assert result.returncode != 0
+    assert calls(shell_env) == []
+    assert not list(tmp_path.glob("mydesk-decrypt.*"))
+
+
+@pytest.mark.parametrize("recipient", ["", "invalid-recipient"])
+def test_invalid_recipient_fails_before_dump(tmp_path, shell_env, recipient):
+    shell_env["MYDESK_BACKUP_AGE_RECIPIENT"] = recipient
+    directory = tmp_path / "backups"
+    assert run_script("backup.sh", directory, shell_env).returncode != 0
+    assert calls(shell_env) == []
+    assert not directory.exists()

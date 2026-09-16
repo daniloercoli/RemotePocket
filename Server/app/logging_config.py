@@ -191,6 +191,9 @@ def setup_logging(environment: str = "dev", log_level: str | None = None) -> Non
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
     logging.getLogger("asyncio").setLevel(logging.WARNING)
+    # HTTP client diagnostics include URLs and, at DEBUG, protocol metadata.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     # Imposta livello per l'applicazione
     logging.getLogger("app").setLevel(getattr(logging, log_level.upper()))

@@ -11,9 +11,14 @@ def parse_screen_frame_header(payload: bytes) -> dict:
     if len(payload) < 4:
         raise ValueError("Missing frame header length")
     header_length = int.from_bytes(payload[:4], "little")
-    if not 0 < header_length <= MAX_FRAME_HEADER_BYTES or 4 + header_length >= len(payload):
+    if not 0 < header_length <= MAX_FRAME_HEADER_BYTES or 4 + header_length >= len(
+        payload
+    ):
         raise ValueError("Invalid frame header length or empty image")
-    header = json.loads(payload[4:4 + header_length].decode("utf-8"))
+    try:
+        header = json.loads(payload[4 : 4 + header_length].decode("utf-8"))
+    except RecursionError as error:
+        raise ValueError("Frame header nesting too deep") from error
     if not isinstance(header, dict) or header.get("type") != "screen_frame":
         raise ValueError("Expected a screen_frame header")
     if header.get("format") != "jpeg":
