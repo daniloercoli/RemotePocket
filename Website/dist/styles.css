@@ -16,6 +16,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; }
+button { font: inherit; }
 a { color: inherit; text-underline-offset: .24em; }
 a:hover { text-decoration-thickness: .13em; }
 a:focus-visible { outline: 3px solid currentColor; outline-offset: 6px; }
@@ -34,7 +35,7 @@ section[id] { scroll-margin-top: 2rem; }
 .brand { display: inline-flex; align-items: center; gap: .7rem; font-size: 1.25rem; font-weight: 750; letter-spacing: -.03em; text-decoration: none; }
 .brand-mark { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: .55rem; background: var(--accent); color: white; font-size: 1.55rem; font-weight: 800; letter-spacing: -.1em; padding-right: .1em; line-height: 1; }
 nav { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem 2rem; }
-nav a { font-size: .95rem; text-decoration: none; padding-block: .7rem; }
+nav a, nav button { font-size: .95rem; text-decoration: none; padding-block: .7rem; }
 nav a:hover { color: var(--accent); }
 nav a[aria-current="page"] { color: var(--accent); text-decoration: underline; font-weight: 650; }
 .primary-navigation { margin-left: auto; gap: .2rem 1.4rem; }
@@ -52,9 +53,9 @@ h1 span { color: var(--accent); }
 .hero-description { max-width: 35rem; margin-top: 1.7rem; font-size: 1.15rem; color: var(--muted); line-height: 1.7; }
 .origin-note { max-width: 35rem; margin-top: 1rem; color: var(--ink); }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1.8rem; margin-top: 2rem; }
-.button { display: inline-flex; align-items: center; justify-content: space-between; gap: 2rem; min-height: 3.3rem; padding: .8rem 1.2rem; border-radius: .3rem; font-weight: 700; text-decoration: none; }
+.button { display: inline-flex; align-items: center; justify-content: space-between; gap: 2rem; min-height: 3.3rem; padding: .8rem 1.2rem; border: 2px solid transparent; border-radius: .3rem; font-weight: 700; text-decoration: none; }
 .button-primary { background: var(--accent); color: white; }
-.button-primary:hover { background: #194ba5; }
+.button-primary:not(:disabled):hover { background: #194ba5; }
 .button-secondary { background: white; color: var(--accent); border: 2px solid var(--accent); }
 .button-secondary:hover { background: var(--surface); }
 .text-link { display: inline-flex; gap: .8rem; align-items: center; padding-block: .7rem; font-size: .95rem; }
@@ -140,9 +141,10 @@ h2 { font-size: clamp(2rem, 3.2vw, 3rem); font-weight: 650; }
 .fit-note p { color: var(--muted); max-width: 62rem; margin-top: .8rem; }
 .fit-note .text-link { color: var(--accent); margin-top: .4rem; }
 
-/* Standalone app links and product sections. */
+/* Service availability and product sections. */
 .app-link { color: var(--accent); border: 1px solid var(--accent); border-radius: .3rem; padding: .45rem .85rem; font-weight: 650; }
-.app-link:hover { background: white; }
+.app-link:not(:disabled):hover { background: white; }
+.button:disabled, .app-link:disabled { background: #e5ebf1; color: var(--muted); border-color: #cbd5df; cursor: not-allowed; opacity: 1; }
 .service-section { padding-block: 4.5rem; border-top: 1px solid var(--line); }
 .service-intro { max-width: 43rem; }
 .service-intro .eyebrow { color: var(--muted); margin-bottom: 1.3rem; }
@@ -181,7 +183,7 @@ h2 { font-size: clamp(2rem, 3.2vw, 3rem); font-weight: 650; }
   .wrap { width: calc(100% - 2.5rem); }
   .header-inner { min-height: 5rem; gap: 1rem; flex-wrap: wrap; padding-block: 1rem; }
   nav { gap: 1.2rem; }
-  nav a { font-size: .875rem; }
+  nav a, nav button { font-size: .875rem; }
   .brand { font-size: 1.1rem; }
   .hero { padding-top: 3rem; }
   .hero-grid, .open-grid, .how-grid, .contact-grid, .security-grid { grid-template-columns: 1fr; gap: 2.7rem; }

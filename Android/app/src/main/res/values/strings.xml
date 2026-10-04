@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">MyDesk Agent</string>
-    <string name="accessibility_service_name">MyDesk Remote Control</string>
-    <string name="setup_title">1. Configura MyDesk</string>
+    <string name="app_name">RemotePocket Agent</string>
+    <string name="accessibility_service_name">RemotePocket Remote Control</string>
+    <string name="setup_title">1. Configura RemotePocket</string>
     <string name="backend_url">URL HTTPS del server</string>
     <string name="device_name">Nome dispositivo</string>
     <string name="pairing_code">Codice pairing (8 caratteri)</string>
     <string name="device_password">Password dispositivo</string>
     <string name="pair_device">Associa dispositivo</string>
     <string name="accessibility_guide">2. Accessibilità
-Abilita MyDesk nelle impostazioni per consentire gesti e controllo remoto. Puoi sospendere il controllo in qualsiasi momento.</string>
+Abilita RemotePocket nelle impostazioni per consentire gesti e controllo remoto. Puoi sospendere il controllo in qualsiasi momento.</string>
     <string name="accessibility_settings">Apri impostazioni accessibilità</string>
     <string name="screenshot_unavailable">Su Android 8–10 gli screenshot non sono disponibili.</string>
     <string name="operation_title">3. Stato operativo</string>
@@ -29,4 +29,3 @@ Abilita MyDesk nelle impostazioni per consentire gesti e controllo remoto. Puoi 
     <string name="pairing_progress">Pairing in corso…</string>
     <string name="pairing_failed">Pairing non riuscito. Controlla rete, server e codice, poi riprova.</string>
 </resources>
-

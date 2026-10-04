@@ -125,7 +125,7 @@ class AccountService(AuthService):
             )
         )
         return secret, pyotp.TOTP(secret).provisioning_uri(
-            user.username, issuer_name="MyDesk"
+            user.username, issuer_name="RemotePocket"
         )
 
     def recovery_codes(self, user):
@@ -167,7 +167,7 @@ class AccountService(AuthService):
             self.db,
             self.settings,
             user.email if user.email_verified else None,
-            "TOTP attivata per il tuo account MyDesk.",
+            "TOTP attivata per il tuo account RemotePocket.",
         )
         self.revoke_credentials(user)
         write_audit(self.db, "mfa_enabled", owner_id=user.id)

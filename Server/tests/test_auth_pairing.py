@@ -33,7 +33,7 @@ def test_bootstrap_login_and_me(client: TestClient):
 def test_console_page_is_served(client: TestClient):
     response = client.get("/")
     assert response.status_code == 200
-    assert "MyDesk Console" in response.text
+    assert "RemotePocket Console" in response.text
 
 
 def test_pairing_code_registers_device_once(

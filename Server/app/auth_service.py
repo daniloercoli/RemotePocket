@@ -478,7 +478,7 @@ class AuthService:
             self.db,
             self.settings,
             user.email if user.email_verified else None,
-            "La password del tuo account MyDesk e' stata reimpostata.",
+            "La password del tuo account RemotePocket e' stata reimpostata.",
         )
         self.db.execute(
             update(MfaChallenge)

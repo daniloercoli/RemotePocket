@@ -123,7 +123,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             engine.dispose()
 
     app = FastAPI(
-        title="MyDesk Server",
+        title="RemotePocket Server",
         version="0.1.0",
         lifespan=lifespan,
         docs_url="/api/docs" if settings.debug else None,

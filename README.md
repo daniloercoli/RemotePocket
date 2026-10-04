@@ -62,13 +62,13 @@ cd Android
 ./gradlew :app:installDebug
 ```
 
-On Windows, use `.\gradlew.bat :app:installDebug`. Open **MyDesk Agent** on the device after installation. See the [Android guide](Android/README.md) for SDK setup and APK builds.
+On Windows, use `.\gradlew.bat :app:installDebug`. Open **RemotePocket Agent** on the device after installation. See the [Android guide](Android/README.md) for SDK setup and APK builds.
 
 ## Connect the device
 
 1. In the web console, create a pairing code.
 2. In the Android app, enter the server URL, a device name, the pairing code and a device password of at least 8 characters.
-3. Pair the device, then open accessibility settings from the app and enable **MyDesk Remote Control**.
+3. Pair the device, then open accessibility settings from the app and enable **RemotePocket Remote Control**.
 4. Return to the console and wait for the device to appear online.
 5. Enter the device password on its card and open a remote session.
 

@@ -219,7 +219,7 @@ class EmailOutbox:
         message = EmailMessage()
         message["From"] = settings.smtp_from
         message["To"] = recipient
-        message["Subject"] = "MyDesk — sicurezza account"
+        message["Subject"] = "RemotePocket — sicurezza account"
         message["Message-ID"] = f"<{job_id}@mydesk.local>"
         message.set_content(body)
         context = ssl.create_default_context()

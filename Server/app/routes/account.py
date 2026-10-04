@@ -140,7 +140,7 @@ def verify_email(payload: TokenRequest, request: Request, db: DB):
                 db,
                 settings,
                 email,
-                "L'indirizzo email del tuo account MyDesk e' stato confermato o modificato.",
+                "L'indirizzo email del tuo account RemotePocket e' stato confermato o modificato.",
             )
         return {"message": "Email verificata."}
 
@@ -224,7 +224,7 @@ def change_mfa(payload, request, db, user, disable):
         db,
         service.settings,
         user.email if user.email_verified else None,
-        "Le impostazioni MFA di MyDesk sono state modificate.",
+        "Le impostazioni MFA di RemotePocket sono state modificate.",
     )
     return {
         "message": "Accedi nuovamente.",

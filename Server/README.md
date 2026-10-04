@@ -1,4 +1,4 @@
-# MyDesk server
+# RemotePocket server
 
 The server runs the API, the web console and the connection to Android devices. It uses FastAPI and serves the console directly, with no separate frontend build.
 

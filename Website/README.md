@@ -16,7 +16,9 @@ Open [the local preview](http://127.0.0.1:8765/). The English pages are at `/` a
 
 Copy the contents of `dist/` to your static hosting provider or web server. Preserve its directory structure so that page, language and stylesheet links continue to work.
 
-The website links to the RemotePocket application, which is deployed separately. Before publishing, update the application and contact links in all four HTML files to match your deployment.
+This first public version is a standalone showcase for `remotepocket.ercoliconsulting.eu`. Service buttons are disabled and marked as coming soon in all four HTML pages. Active source-code links point to [the RemotePocket project on GitHub](https://github.com/daniloercoli/RemotePocket). Hosting these static files requires no RemotePocket backend, database or Android service.
+
+Registration and sign-in will be enabled in a later release, once the application is deployed separately and ready for external use. At that point, update the buttons, availability notices and launch copy in both languages. Verify contact links before publishing.
 
 ## License
 

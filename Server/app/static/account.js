@@ -88,7 +88,7 @@ actionButton("setupMfa", "accountError", async epoch => {
   if (qrUrl) URL.revokeObjectURL(qrUrl);
   qrUrl = URL.createObjectURL(new Blob([data.qr_svg], {type: "image/svg+xml"})); $("qrImage").src = qrUrl; $("qrImage").hidden = false;
   $("manualSecret").textContent = `Segreto manuale (10 minuti): ${data.secret}`; $("confirmMfa").hidden = false;
-  $("accountError").textContent = "Aggiungi MyDesk all'autenticatore e inserisci il codice nel campo TOTP.";
+  $("accountError").textContent = "Aggiungi RemotePocket all'autenticatore e inserisci il codice nel campo TOTP.";
 });
 actionButton("confirmMfa", "accountError", () => requestRecoveryCodes("/api/auth/mfa/confirm", factor($("factorCode").value)));
 actionButton("regenerateMfa", "accountError", () => requestRecoveryCodes("/api/auth/mfa/recovery-codes/regenerate", confirmation()));

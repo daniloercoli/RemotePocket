@@ -1,12 +1,12 @@
-# MyDesk Android app
+# RemotePocket Android app
 
-The Android app connects a device to the MyDesk server. It uses an accessibility service to capture the screen and handle remote input.
+The Android app connects a device to the RemotePocket server. It uses an accessibility service to capture the screen and handle remote input.
 
 ## Requirements
 
 - Android Studio, JDK 17 and Android SDK Platform 35.
 - An Android device or emulator. Screen capture requires Android 11 / API 30 or newer. The minimum install version is Android 8 / API 26.
-- A running [MyDesk server](../Server/README.md).
+- A running [RemotePocket server](../Server/README.md).
 
 The project includes the Gradle Wrapper, so a separate Gradle installation is not required.
 
@@ -44,15 +44,15 @@ To install it on a connected device or running emulator:
 ./gradlew :app:installDebug
 ```
 
-On Windows, use `.\gradlew.bat :app:installDebug`. Open **MyDesk Agent** from the device's app list after installation.
+On Windows, use `.\gradlew.bat :app:installDebug`. Open **RemotePocket Agent** from the device's app list after installation.
 
 ## Pair with the server
 
 1. Open the web console on your computer and log in. On a new server, create the first owner account first.
 2. Create a pairing code in the console. It has 8 characters, works once and expires after 10 minutes by default.
-3. In MyDesk Agent, enter the server URL, a device name, the code and a device password of at least 8 characters.
+3. In RemotePocket Agent, enter the server URL, a device name, the code and a device password of at least 8 characters.
 4. Tap the pairing button.
-5. Open accessibility settings from the app and enable **MyDesk Remote Control**.
+5. Open accessibility settings from the app and enable **RemotePocket Remote Control**.
 6. Return to the console. Once the device is online, enter its device password and open a session.
 
 The device password is separate from the account password. The app does not save the pairing code or device password. It saves the server URL, device ID and name, and stores the device token encrypted with Android Keystore.
@@ -73,7 +73,7 @@ Debug builds allow HTTP for local development. Release builds require HTTPS with
 
 Keep the device unlocked and the accessibility service enabled. The console can display screenshots, send taps and swipes, enter text in supported fields and use Android navigation buttons. Text input depends on the app and field being controlled.
 
-Use the pause button in MyDesk Agent to disconnect and stop remote control. The pause stays active after a restart; use the resume button to reconnect. Removing the local configuration lets you pair again. To revoke access on the server, use the device's revoke button in the console.
+Use the pause button in RemotePocket Agent to disconnect and stop remote control. The pause stays active after a restart; use the resume button to reconnect. Removing the local configuration lets you pair again. To revoke access on the server, use the device's revoke button in the console.
 
 If the network connection drops, the app tries to reconnect. Open a new remote session once it is online again. Invalid or revoked credentials require a new pairing.
 
