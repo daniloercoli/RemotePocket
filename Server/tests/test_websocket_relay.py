@@ -66,8 +66,9 @@ def test_two_peers_relay_binary_and_json_without_echo_and_preserve_correlation(
 ):
     async def run():
         channel = "mydesk:test:" + uuid.uuid4().hex
+        # Exercise delivery with the normal timeout; 200 ms is too tight for CI.
         first, second = [
-            WebSocketRelay(redis_url, channel=channel, timeout=0.2) for _ in range(2)
+            WebSocketRelay(redis_url, channel=channel) for _ in range(2)
         ]
         device_manager = WebSocketManager(relay=first)
         console_manager = WebSocketManager(relay=second)
@@ -95,9 +96,34 @@ def test_two_peers_relay_binary_and_json_without_echo_and_preserve_correlation(
             assert await device_manager.forward_to_console_by_session("session", frame)
             console.send_bytes.assert_awaited_once_with(frame)
             console.send_json.assert_not_awaited()
-            # No node owns this connection: publishing alone must not report delivery.
-            assert not await console_manager.send_to_device("missing", {"type": "ping"})
-            assert not second.pending
+            assert first.healthy and second.healthy
+            assert not first.pending and not second.pending
+            assert first.queue.empty() and second.queue.empty()
+        finally:
+            await first.close()
+            await second.close()
+        assert not first.tasks and not second.tasks
+
+    asyncio.run(run())
+
+
+def test_relay_times_out_for_missing_destination_and_clears_pending(redis_url):
+    async def run():
+        channel = "mydesk:test:" + uuid.uuid4().hex
+        first, second = [
+            WebSocketRelay(redis_url, channel=channel) for _ in range(2)
+        ]
+        manager = WebSocketManager(relay=first)
+        peer_manager = WebSocketManager(relay=second)
+        await first.start(manager.handle_relay_message)
+        await second.start(peer_manager.handle_relay_message)
+        try:
+            # Only the expected failure needs a short acknowledgement timeout.
+            first.timeout = 0.2
+            # Publishing succeeds, but no peer owns the destination or acknowledges it.
+            assert not await manager.send_to_device("missing", {"type": "ping"})
+            assert first.healthy and second.healthy
+            assert not first.pending and not second.pending
             assert first.queue.empty() and second.queue.empty()
         finally:
             await first.close()
