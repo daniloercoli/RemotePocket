@@ -52,7 +52,7 @@
                 <li><span class="connection-number" aria-hidden="true">02</span><div><h3>RemotePocket server</h3><p>Our hosted service or your own installation.</p></div></li>
                 <li><span class="connection-number" aria-hidden="true">03</span><div><h3>Your Android device</h3><p>Pair it once. Enable remote access.</p></div></li>
               </ol>
-              <p class="connection-note">The person using the phone can pause remote control from the Android app.</p>
+              <p class="connection-note"><a href="#on-demand">Activate it with an SMS or Telegram message</a> when needed. The person using the phone can pause remote control from the Android app.</p>
             </aside>
           </div>
         </div>
@@ -80,11 +80,28 @@
             <div class="section-intro"><p class="eyebrow">Getting started</p><h2 id="how-title">From your account<br>to your first session.</h2><p>These steps apply to your own installation and, at launch, to the public service. Use the web app on your computer and the Android app on the phone you want to help with.</p></div>
             <ol class="steps">
               <li><span class="step-number" aria-hidden="true">01</span><div><h3>Open the web app</h3><p>Create your account or sign in. You can open the app directly from a shared link. For password recovery, add and verify your email address.</p></div></li>
-              <li><span class="step-number" aria-hidden="true">02</span><div><h3>Pair the phone</h3><p>Install the Android app, enter the server address and a pairing code from the web app, then choose a separate device password. Enable the accessibility service on the phone.</p></div></li>
-              <li><span class="step-number" aria-hidden="true">03</span><div><h3>Start helping</h3><p>When the phone appears online, enter its device password and open a session. View the screen, tap, swipe and type in supported fields.</p></div></li>
+              <li><span class="step-number" aria-hidden="true">02</span><div><h3>Prepare the phone</h3><p>Install the Android app and link the phone to your account using the code from the web app. Choose a password for remote support and follow the app’s instructions to allow the access it needs.</p></div></li>
+              <li><span class="step-number" aria-hidden="true">03</span><div><h3>Send a message</h3><p>In the web app, choose “Attiva tramite SMS o Telegram”. Copy the message and send it by SMS or Telegram to the phone you want to help with. The phone connects by itself: the person using it does not need to tap the message.</p></div></li>
+              <li><span class="step-number" aria-hidden="true">04</span><div><h3>Start helping</h3><p>When the phone appears online, enter its device password and open a session. View the screen, tap, swipe and type in supported fields.</p></div></li>
             </ol>
           </div>
-          <div class="setup-note"><h3>Set it up together, once</h3><p>Screen viewing requires Android 11 or newer. The phone must be online, unlocked, with the accessibility service running and remote control enabled. Setup needs the device user’s permission; no new approval is required for each session.</p><p>If Android stops the service or the phone locks, someone may need to act on the device. App and device restrictions still apply.</p></div>
+          <div class="setup-note"><h3>Set it up together, once</h3><p>The person using the phone must agree and grant RemotePocket access during setup. They do not need to approve each connection afterwards. To see the screen, you need Android 11 or newer, internet access and an unlocked phone.</p><p>If Android closes RemotePocket or the phone locks, the person holding it may need to help. Some apps may prevent you from seeing or controlling their content.</p></div>
+        </div>
+      </section>
+
+      <section class="service-section" id="on-demand" aria-labelledby="on-demand-title">
+        <div class="wrap">
+          <div class="service-intro">
+            <p class="eyebrow">Just send an SMS or Telegram message</p>
+            <h2 id="on-demand-title">Connect when help is needed.</h2>
+            <p><strong>Designed to save battery between support sessions.</strong> RemotePocket does not stay connected all day. When help is needed, copy a message from the web app and send it by SMS or Telegram. The phone connects by itself. After support ends, it goes back to waiting.</p>
+          </div>
+          <div class="service-features">
+            <article class="feature-item"><span class="feature-number" aria-hidden="true">SMS</span><h3>To the phone number</h3><p>Send the message prepared by RemotePocket as an SMS to the phone you want to help with. First, allow RemotePocket to receive SMS in the phone’s settings.</p></article>
+            <article class="feature-item"><span class="feature-number" aria-hidden="true">TELEGRAM</span><h3>In a conversation</h3><p>Send the same message to the Telegram account used on the phone. A notification must appear with the message text. First, allow RemotePocket to read notifications in the phone’s settings.</p></article>
+            <article class="feature-item"><span class="feature-number" aria-hidden="true">USE IT OFTEN?</span><h3>You can keep it connected</h3><p>Enable “Mantieni connessione al server” in the Android app. You can then provide support without sending a message each time.</p></article>
+          </div>
+          <div class="setup-note"><h3>You still need the password to start</h3><p>RemotePocket prepares the message and you send it. To see the screen and help, enter the password you chose for that phone in RemotePocket into the web app.</p><p>The message must arrive within 10 minutes of being created. Once the phone receives it, you have 10 minutes to start. You can then stay connected for as long as you are helping. When you finish, the connection closes after 5 minutes unless you start again.</p><p>The phone needs internet access and must be unlocked for you to see the screen. It is normal for it to appear offline while waiting for a message. The person using the phone can pause RemotePocket at any time: messages will not make it connect while paused.</p></div>
         </div>
       </section>
 
@@ -104,8 +121,8 @@
           <div class="section-intro"><p class="eyebrow">Free software</p><h2 id="open-title">Your own server.<br>Your choice.</h2></div>
           <div class="open-details">
             <article><h3>GNU GPL license</h3><p>RemotePocket is licensed under GPL-3.0-or-later. The license is included with the project.</p><a class="text-link" href="license.txt">Read the full license <span aria-hidden="true">↗</span></a></article>
-            <article><h3>An independent installation</h3><p>You can run the backend and web console on your own server or hosting provider. Configure Android to connect to that installation.</p></article>
-            <article><h3>Source code and setup</h3><p>The source code for the server, web console and Android app is available on GitHub, together with installation instructions.</p><a class="text-link" href="https://github.com/daniloercoli/RemotePocket">Download the source from GitHub <span aria-hidden="true">→</span></a></article>
+            <article><h3>An independent installation</h3><p>You can install RemotePocket on a server you choose. The Android app will connect to that server.</p></article>
+            <article><h3>Code and instructions</h3><p>You can find all the RemotePocket code on GitHub, along with instructions for installing it.</p><a class="text-link" href="https://github.com/daniloercoli/RemotePocket">Download the source from GitHub <span aria-hidden="true">→</span></a></article>
           </div>
         </div>
       </section>

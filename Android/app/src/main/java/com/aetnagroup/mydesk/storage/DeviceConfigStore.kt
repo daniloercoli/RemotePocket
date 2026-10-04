@@ -10,6 +10,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import com.aetnagroup.mydesk.network.WakeNonces
 
 class DeviceConfigStore(context: Context) {
     private val prefs: SharedPreferences =
@@ -17,6 +18,29 @@ class DeviceConfigStore(context: Context) {
 
     var corrupt = false
         private set
+    var keepConnected: Boolean
+        get() = prefs.getBoolean("keep_connected", false)
+        set(value) { prefs.edit().putBoolean("keep_connected", value).commit() }
+    val wakeKey: String?
+        get() = try { prefs.getString("wake_key", null)?.let { decrypt(it) } } catch (_: Exception) { null }
+    val configurationPending: Boolean
+        get() = wakeKey == null || !prefs.contains("synced_keep_connected") ||
+            prefs.getBoolean("synced_keep_connected", false) != keepConnected
+    var lastWakeChannel: String?
+        get() = prefs.getString("last_wake_channel", null)
+        set(value) { prefs.edit().putString("last_wake_channel", value).commit() }
+
+    fun saveWakeKey(key: String, persistent: Boolean) {
+        check(prefs.edit().putString("wake_key", encrypt(key))
+            .putBoolean("synced_keep_connected", persistent).commit())
+    }
+
+    /** Main-thread callers; commit before any connection so duplicates survive restarts. */
+    fun consumeWakeNonce(nonce: String, expiresAt: Long, nowSeconds: Long): Boolean {
+        val live = WakeNonces.consume(prefs.getStringSet("wake_nonces", emptySet()).orEmpty(), nonce, expiresAt, nowSeconds)
+            ?: return false
+        return prefs.edit().putStringSet("wake_nonces", live).commit()
+    }
     var paused: Boolean
         get() = prefs.getBoolean("paused", false)
         set(value) { prefs.edit().putBoolean("paused", value).commit() }
@@ -44,6 +68,7 @@ class DeviceConfigStore(context: Context) {
 
     fun save(config: DeviceConfig) {
         prefs.edit()
+            .remove("wake_key").remove("synced_keep_connected").remove("wake_nonces").remove("last_wake_channel")
             .putBoolean("invalid", false)
             .putString("backend_url", config.backendUrl)
             .putString("device_id", config.deviceId)
@@ -91,4 +116,3 @@ class DeviceConfigStore(context: Context) {
         const val KEY_ALIAS = "mydesk_device_token"
     }
 }
-

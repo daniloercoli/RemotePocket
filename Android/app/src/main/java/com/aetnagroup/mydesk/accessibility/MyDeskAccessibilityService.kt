@@ -13,14 +13,15 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.aetnagroup.mydesk.AgentController
 import com.aetnagroup.mydesk.network.CapturedFrame
 import com.aetnagroup.mydesk.network.DeviceWebSocketClient
-import com.aetnagroup.mydesk.storage.DeviceConfigStore
+import com.aetnagroup.mydesk.network.AgentConnectionManager
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 
 class MyDeskAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val screenshotExecutor = Executors.newSingleThreadExecutor()
-    private var wsClient: DeviceWebSocketClient? = null
+    val connection by lazy { AgentConnectionManager(this) }
+    private val wsClient: DeviceWebSocketClient? get() = connection.client
     private var activeSessionId: String? = null
     private var frameId = 0L
 
@@ -30,11 +31,7 @@ class MyDeskAccessibilityService : AccessibilityService() {
     }
 
     fun applyConfiguration() {
-        val store = DeviceConfigStore(this)
-        if (store.paused || store.invalid || wsClient != null) return
-        val config = store.load() ?: return
-        AgentController.publish(AgentController.State.CONNECTING)
-        wsClient = DeviceWebSocketClient(this, config).also { it.connect() }
+        connection.refresh()
     }
 
     fun stopControl(reason: String) {
@@ -42,9 +39,7 @@ class MyDeskAccessibilityService : AccessibilityService() {
             wsClient?.send(org.json.JSONObject().put("type", "device_local_stop").put("reason", reason))
         }
         activeSessionId?.let { wsClient?.send(org.json.JSONObject().put("type", "session_end").put("sessionId", it).put("reason", reason)) }
-        endRemoteSession(reason)
-        wsClient?.disconnect()
-        wsClient = null
+        connection.stop(reason)
     }
 
     override fun onDestroy() {
@@ -60,7 +55,8 @@ class MyDeskAccessibilityService : AccessibilityService() {
     override fun onInterrupt() { stopControl("accessibility_interrupted"); AgentController.publish(AgentController.State.ACCESSIBILITY_DISABLED) }
 
     fun startRemoteSession(sessionId: String, client: DeviceWebSocketClient) {
-        if (client !== wsClient || activeSessionId == sessionId) return
+        if (client !== wsClient || activeSessionId == sessionId || !connection.isAllowed()) return
+        connection.sessionStarted()
         AgentController.publish(AgentController.State.ACTIVE)
         activeSessionId = sessionId
         frameId = 0
@@ -70,8 +66,10 @@ class MyDeskAccessibilityService : AccessibilityService() {
 
     fun endRemoteSession(reason: String) {
         android.util.Log.i("AccessibilityService", "Ending remote session: $reason")
+        val wasActive = activeSessionId != null
         activeSessionId = null
         mainHandler.removeCallbacksAndMessages(null)
+        if (wasActive) connection.sessionEnded()
     }
 
     fun isCurrentSession(sessionId: String) = activeSessionId != null && activeSessionId == sessionId

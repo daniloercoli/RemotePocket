@@ -23,6 +23,7 @@ const state = {
   activeSessionId: "",
   sessionId: "",
   devices: [],
+  pendingWakes: new Set(),
   authEpoch: 0,
   authContextEpoch: 0,
   challenge: "",
@@ -164,6 +165,7 @@ function clearCredentials(message = "Accedi nuovamente.", {automatic = false, pr
   if (ws) ws.close();
   clearSession(message);
   state.devices = [];
+  state.pendingWakes.clear();
   state.devicesLoading = false;
   $("devices").textContent = "";
   $("pairingCode").textContent = "Nessun codice generato.";
@@ -279,7 +281,7 @@ function connectConsoleWs() {
     $("connectionBadge").textContent = "console connessa";
     $("connectionBadge").className = "status online";
     console.info("Console WebSocket connected");
-    ws.send(JSON.stringify({ type: "device_list_request" }));
+    ws.send(JSON.stringify({ type: "device_list_request", watch: true }));
   };
 
   ws.onclose = (event = {}) => {
@@ -333,6 +335,12 @@ function connectConsoleWs() {
 function handleWsMessage(message) {
   if (message.type === "device_list") {
     renderDevices(message.devices);
+  } else if (message.type === "device_changed") {
+    const device = message.device;
+    if (!device || typeof device.id !== "string") return;
+    const devices = state.devices.filter(item => item.id !== device.id);
+    devices.push(device);
+    renderDevices(devices);
   } else if (message.type === "session_challenge") {
     return answerDeviceChallenge(message);
   } else if (message.type === "session_started") {
@@ -428,6 +436,15 @@ function renderDevices(devices) {
         <label>Password dispositivo<input type="password" autocomplete="off" data-password="${escapeHtml(device.id)}" /></label>
         <div class="row"><button data-start="${escapeHtml(device.id)}">Apri sessione</button>
         <button class="danger" data-revoke="${escapeHtml(device.id)}">Revoca</button></div>
+        <p data-mode></p>
+        <button data-wake="${escapeHtml(device.id)}">Attiva tramite SMS o Telegram</button>
+        <div data-wake-panel hidden>
+          <label>Messaggio firmato da inviare al dispositivo<textarea data-wake-message readonly rows="3"></textarea></label>
+          <p data-wake-expiry></p>
+          <button data-copy-wake="${escapeHtml(device.id)}">Copia</button>
+          <p>Invia il testo con SMS o Telegram. Quando il dispositivo risponde, apri la sessione con la sua password.</p>
+          <p data-wake-status role="status"></p>
+        </div>
         <details><summary>Dettagli</summary><pre></pre></details><p data-error role="status"></p>`;
       item.querySelector("[data-name]").value = device.name;
     }
@@ -435,6 +452,22 @@ function renderDevices(devices) {
     item.querySelector(".status").textContent = device.status;
     item.querySelector("[data-start]").disabled = device.status !== "online" || state.pendingDevices.has(device.id) || Array.from(state.sessions.values()).some(session => session.deviceId === device.id);
     item.querySelector("[data-revoke]").disabled = !!device.revoked_at;
+    item.querySelector("[data-mode]").textContent = device.connection_mode === "on_demand"
+      ? "Attivazione su richiesta · la raggiungibilità è verificata solo al collegamento."
+      : "Connessione continua";
+    item.querySelector("[data-wake]").disabled = !device.wake_configured || !!device.revoked_at || state.pendingWakes.has(device.id);
+    const wakePanel = item.querySelector("[data-wake-panel]");
+    if (device.revoked_at) {
+      wakePanel.hidden = true;
+      item.querySelector("[data-wake-message]").value = "";
+    }
+    if (!wakePanel.hidden) {
+      const expired = Date.now() >= Number(wakePanel.dataset.expires);
+      item.querySelector("[data-copy-wake]").disabled = expired;
+      if (expired) item.querySelector("[data-wake-status]").textContent = "Messaggio scaduto: genera una nuova attivazione.";
+      else if (device.status === "online" || device.status === "in_session")
+        item.querySelector("[data-wake-status]").textContent = "Dispositivo collegato.";
+    }
     item.querySelector("pre").textContent = JSON.stringify({id: device.id, capacita: device.capabilities,
       creato: device.created_at, ultima_presenza: device.last_seen_at}, null, 2);
     item.hidden = (!!status && status !== device.status) || !`${device.name} ${device.id}`.toLocaleLowerCase().includes(search);
@@ -444,6 +477,47 @@ function renderDevices(devices) {
     existing.delete(device.id);
   }
   for (const node of existing.values()) node.remove();
+}
+
+async function generateWakeMessage(deviceId, card) {
+  if (state.pendingWakes.has(deviceId)) return;
+  const epoch = state.authEpoch;
+  state.pendingWakes.add(deviceId);
+  card.querySelector("[data-wake]").disabled = true;
+  try {
+    const result = await postJson(`/api/devices/${encodeURIComponent(deviceId)}/wake-message`, {});
+    if (epoch !== state.authEpoch || !state.token || state.devices.find(device => device.id === deviceId)?.revoked_at) return;
+    const panel = card.querySelector("[data-wake-panel]");
+    panel.dataset.expires = String(Date.parse(result.expires_at));
+    panel.hidden = false;
+    card.querySelector("[data-wake-message]").value = result.message;
+    card.querySelector("[data-wake-expiry]").textContent = `Valido fino alle ${new Date(result.expires_at).toLocaleTimeString()}`;
+    card.querySelector("[data-copy-wake]").disabled = Date.now() >= Number(panel.dataset.expires);
+    card.querySelector("[data-wake-status]").textContent = "Pronto da copiare e inviare. In attesa del dispositivo.";
+    card.querySelector("[data-error]").textContent = "";
+  } catch (error) {
+    if (epoch === state.authEpoch) card.querySelector("[data-error]").textContent = error.message;
+  } finally {
+    state.pendingWakes.delete(deviceId);
+    if (epoch === state.authEpoch) renderDevices(state.devices);
+  }
+}
+
+async function copyWakeMessage(card) {
+  const panel = card.querySelector("[data-wake-panel]");
+  const field = card.querySelector("[data-wake-message]");
+  const status = card.querySelector("[data-wake-status]");
+  if (!field.value || Date.now() >= Number(panel.dataset.expires)) {
+    status.textContent = "Messaggio scaduto: genera una nuova attivazione.";
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(field.value);
+    status.textContent = "Copiato. Invia il messaggio tramite SMS o Telegram.";
+  } catch (_) {
+    field.focus(); field.select();
+    status.textContent = "Copia il testo selezionato e invialo tramite SMS o Telegram.";
+  }
 }
 
 function escapeHtml(value) {
@@ -622,6 +696,14 @@ $("pairingButton").onclick = async () => {
 $("refreshButton").onclick = () => refreshDevices().catch((error) => log(error.message));
 
 $("devices").onclick = async (event) => {
+  if (event.target.dataset.wake) {
+    await generateWakeMessage(event.target.dataset.wake, event.target.closest(".device-card"));
+    return;
+  }
+  if (event.target.dataset.copyWake) {
+    await copyWakeMessage(event.target.closest(".device-card"));
+    return;
+  }
   const startId = event.target.dataset.start;
   const revokeId = event.target.dataset.revoke;
   if (startId) {

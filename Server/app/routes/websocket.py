@@ -13,7 +13,7 @@ from app.authentication import authenticate_user
 from app.auth_service import AuthService
 from app.device_auth import DeviceChallenges, verify_proof
 from app.models import Device, RemoteSession, User
-from app.routes.devices import serialize_device
+from app.routes.devices import serialize_device, publish_device
 from app.screen_frames import parse_screen_frame_header
 from app.security import generate_id, hash_secret
 from app.timeutils import utc_now
@@ -118,6 +118,7 @@ async def _serve_device(websocket: WebSocket, db: Session):
     manager = websocket.app.state.ws_manager
     device_id = websocket.query_params.get("device_id")
     token = _bearer_token(websocket)
+    wake_reported = False
     frame_budget = FrameBudget(websocket.app.state.settings)
     control_limiter = WebSocketRateLimiter(
         websocket.app.state.settings.rate_limit_ws_control_per_second
@@ -160,6 +161,7 @@ async def _serve_device(websocket: WebSocket, db: Session):
                 "serverTime": utc_now().isoformat() + "Z",
             }
         )
+        await publish_device(websocket, device)
 
         while True:
             db.rollback()
@@ -242,7 +244,17 @@ async def _serve_device(websocket: WebSocket, db: Session):
                 db.commit()
             elif message_type == "device_hello":
                 device.capabilities_json = message.get("capabilities") or {}
+                if message.get("wake") and not wake_reported:
+                    write_audit(
+                        db,
+                        "device_woken",
+                        owner_id=device.owner_id,
+                        device_id=device.id,
+                        payload=message["wake"],
+                    )
+                    wake_reported = True
                 db.commit()
+                await publish_device(websocket, device)
                 await websocket.send_json(
                     {
                         "type": "device_registered",
@@ -306,6 +318,8 @@ async def _cleanup_device(db, websocket, device_id, manager):
     await _end_sessions(
         db, websocket, ended_session_ids, "device_disconnected", notify_device=False
     )
+    if device_id and device:
+        await publish_device(websocket, device)
 
 
 @router.websocket("/console/ws")
@@ -396,6 +410,9 @@ async def _serve_console(websocket: WebSocket, db: Session):
                     {"type": "heartbeat_ack", "source": "backend"}
                 )
             elif message_type == "device_list_request":
+                manager.console_connections[connection_id].watch_devices = message.get(
+                    "watch", False
+                )
                 try:
                     enforce_limit(websocket.app, "devices", user.id, 30, 60)
                 except HTTPException as error:

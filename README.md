@@ -32,7 +32,10 @@ Generate a signing key once:
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Save the result as `MYDESK_SECRET_KEY` in `.env`, then start the server:
+Save the result as `MYDESK_SECRET_KEY` in `.env`. SMS/Telegram activation also requires
+`MYDESK_ENCRYPTION_KEY`: generate it once with
+`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+and keep it across restarts. Then start the server:
 
 ```bash
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -69,8 +72,12 @@ On Windows, use `.\gradlew.bat :app:installDebug`. Open **RemotePocket Agent** o
 1. In the web console, create a pairing code.
 2. In the Android app, enter the server URL, a device name, the pairing code and a device password of at least 8 characters.
 3. Pair the device, then open accessibility settings from the app and enable **RemotePocket Remote Control**.
-4. Return to the console and wait for the device to appear online.
-5. Enter the device password on its card and open a remote session.
+4. Configure SMS reception and/or Telegram notification access in the Android app. Connection is **on demand by default**. In the console, use **Attiva tramite SMS o Telegram**, copy the signed command and send it to the device. Alternatively enable **Mantieni connessione al server** for continuous availability.
+5. Wait for the device to appear online, then enter its device password on the card and choose **Apri sessione**.
+
+For SMS, send the copied text unchanged as an actual SMS to the device's SIM number. For Telegram, send it to the account used on that Android device; Telegram must produce a notification containing the command. The console generates the message for manual delivery. It does not send it automatically. An offline device is normal while the agent waits locally.
+
+The message expires ten minutes after generation. Valid receipt opens a ten-minute connection window; an active session keeps the connection open, followed by five minutes of availability after it ends. See the [complete activation workflow and timing example](Server/docs/wake-activation.md#everyday-workflow-from-an-offline-device-to-a-session).
 
 Use the right server URL in the app:
 
@@ -92,6 +99,7 @@ Open the console over HTTPS or on `localhost`: device session authentication use
 
 - [Server setup and operation](Server/README.md)
 - [Android setup and use](Android/README.md)
+- [SMS and Telegram activation, upgrade and acceptance tests](Server/docs/wake-activation.md)
 - [Monitoring alerts](Server/docs/alert-rules.md)
 - [Development Redis relay](Server/docs/websocket-relay.md)
 - [Security policy](SECURITY.md)

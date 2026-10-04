@@ -12,7 +12,23 @@
 Abilita RemotePocket nelle impostazioni per consentire gesti e controllo remoto. Puoi sospendere il controllo in qualsiasi momento.</string>
     <string name="accessibility_settings">Apri impostazioni accessibilità</string>
     <string name="screenshot_unavailable">Su Android 8–10 gli screenshot non sono disponibili.</string>
-    <string name="operation_title">3. Stato operativo</string>
+    <string name="operation_title">4. Stato operativo</string>
+    <string name="wake_setup_title">3. Collegamento al server</string>
+    <string name="keep_connected">Mantieni connessione al server</string>
+    <string name="wake_guide">OFF: resta in attesa di un comando firmato via SMS o Telegram. ON: mantiene il collegamento continuo. Dopo l’assistenza, in modalità OFF, il collegamento termina dopo 5 minuti.</string>
+    <string name="sms_permission">Abilita ricezione SMS</string>
+    <string name="telegram_permission">Abilita accesso notifiche Telegram</string>
+    <string name="telegram_listener_name">RemotePocket — attivazione Telegram</string>
+    <string name="telegram_guide">Autorizza RemotePocket nell’accesso alle notifiche. Telegram deve ricevere il messaggio e mostrarne il testo nella notifica. Vengono elaborati soltanto comandi firmati nelle notifiche Telegram.</string>
+    <string name="battery_settings">Apri ottimizzazione batteria</string>
+    <string name="battery_guide">Per il collegamento a schermo spento, escludi RemotePocket dall’ottimizzazione della batteria. Il servizio di accessibilità deve restare abilitato.</string>
+    <string name="retry_wake_configuration">Riprova configurazione attivazione</string>
+    <string name="state_wake_setup_required">Configurazione attivazione da completare. Verifica rete e server, poi premi Riprova.</string>
+    <string name="wake_configured">Attivazione SMS e Telegram configurata.</string>
+    <string name="state_waiting">In attesa di SMS o Telegram.</string>
+    <string name="wake_status">Ultima attivazione: %1$s\nPermesso SMS: %2$s</string>
+    <string name="permission_granted">abilitato</string>
+    <string name="permission_missing">da abilitare</string>
     <string name="pause_control">Sospendi controllo</string>
     <string name="resume_control">Riprendi controllo</string>
     <string name="remove_configuration">Rimuovi configurazione</string>

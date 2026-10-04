@@ -56,6 +56,10 @@ class Device(Base):
     owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     name: Mapped[str] = mapped_column(String(200))
     token_hash: Mapped[str] = mapped_column(String(128), index=True)
+    connection_mode: Mapped[str] = mapped_column(
+        String(20), default="persistent", server_default="persistent"
+    )
+    wake_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     access_auth_salt: Mapped[str] = mapped_column(String(24))
     access_auth_iterations: Mapped[int] = mapped_column()
     access_auth_stored_key: Mapped[str] = mapped_column(String(44))

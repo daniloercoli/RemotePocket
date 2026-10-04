@@ -68,13 +68,34 @@ def init_db(engine: Engine) -> None:
         existing = set(inspector.get_table_names())
         if existing:
             # Inspect before any DDL: never partially upgrade a previous database.
+            additions = {"connection_mode", "wake_key_encrypted"}
+            missing_device_columns = set()
             for table in Base.metadata.sorted_tables:
-                if table.name not in existing or not set(table.columns.keys()).issubset(
+                columns = (
                     {column["name"] for column in inspector.get_columns(table.name)}
-                ):
+                    if table.name in existing
+                    else set()
+                )
+                missing = set(table.columns.keys()) - columns
+                if table.name == "devices":
+                    missing_device_columns = missing & additions
+                    missing -= additions
+                if table.name not in existing or missing:
                     raise RuntimeError(
                         "Schema precedente o incompleto: la fase 3 richiede un database nuovo. Nessun dato modificato."
                     )
+            # Only this known additive upgrade is allowed. Validate every table first.
+            if "connection_mode" in missing_device_columns:
+                connection.execute(
+                    text(
+                        "ALTER TABLE devices ADD COLUMN connection_mode VARCHAR(20) "
+                        "NOT NULL DEFAULT 'persistent'"
+                    )
+                )
+            if "wake_key_encrypted" in missing_device_columns:
+                connection.execute(
+                    text("ALTER TABLE devices ADD COLUMN wake_key_encrypted TEXT")
+                )
         Base.metadata.create_all(connection)
         connection.execute(
             text(

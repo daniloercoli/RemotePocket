@@ -250,3 +250,5 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 select { min-height: 38px; border: 1px solid var(--line); border-radius: 6px; padding: 6px; background: white; }
 @media (max-width: 900px) { .screen-shell { position: static; max-height: none; } }
 [role="status"]:empty { display: none; }
+[data-wake-panel] { padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
+[data-wake-message] { display: block; width: 100%; box-sizing: border-box; resize: vertical; overflow-wrap: anywhere; }

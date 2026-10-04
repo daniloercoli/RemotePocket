@@ -51,6 +51,14 @@ Open [the console](http://localhost:8000/) on the server computer. The default s
 
 After the initial setup, activate the virtual environment and run the same Uvicorn command to start the server again. Stop it with `Ctrl+C`.
 
+## SMS and Telegram activation
+
+The updated Android app defaults to on-demand connection. Configure `MYDESK_ENCRYPTION_KEY` (a Fernet key) even in development to provision wake keys. Deploy the server before the APK; startup upgrades the previous schema additively and preserves pairing and history.
+
+In the console, choose **Attiva tramite SMS o Telegram** on a configured device, including while offline. Copy the signed text and manually send it as an SMS to the device's SIM number or a Telegram message to the account used on that Android device. The console does not send messages or manage phone numbers/Telegram contacts. Telegram activation depends on a notification containing the command. After the agent authenticates, presence updates automatically; **Apri sessione** still requires the device password.
+
+The command expires ten minutes after generation. Valid receipt starts a ten-minute connection window; a session keeps the connection open, with five minutes of availability after it ends. Waiting agents make no periodic requests. Offline presence is normal in this mode and does not confirm whether a wake channel can deliver. See the [step-by-step workflow, timing example, protocol, APIs and hardware checklist](docs/wake-activation.md).
+
 ## First account and mobile connection
 
 Enter a username and a strong password in the console, then create the first owner account. Email is optional. Usernames allow 3–30 letters, numbers or underscores. Account passwords need at least 8 characters, uppercase and lowercase letters, a number and a symbol. Weak, common and breached passwords are rejected.
@@ -211,9 +219,9 @@ To enable email in this stack, set the SMTP environment variables described abov
 
 ## Database and backups
 
-A fresh database is initialized automatically. Existing databases must already use the current schema: older or incomplete schemas are rejected, and automatic upgrades or SQLite-to-PostgreSQL conversion are not provided. Back up an existing database before changing its configuration.
+A fresh database is initialized automatically. Startup supports the specific additive SMS/Telegram upgrade: it adds `devices.connection_mode` and `devices.wake_key_encrypted` when missing, preserving users, pairing and history on SQLite and PostgreSQL. Other incomplete or incompatible schemas are rejected; general migration and SQLite-to-PostgreSQL conversion are not provided. Back up an existing database before upgrading and preserve `MYDESK_ENCRYPTION_KEY`.
 
-Users, devices and account history survive restarts. Active remote sessions end when the server stops; devices reconnect and a new session can be opened from the console.
+Users, devices and account history survive restarts. Active remote sessions end when the server stops. Continuous-mode devices reconnect automatically; on-demand devices retry within their remaining window, with at most five minutes after a lost session. After that window, send a fresh wake command. Open a new session from the console after the device is online.
 
 Install `age` on the machine running the backup scripts (`apt-get install age` on Ubuntu or `brew install age` on macOS). Generate an identity with `age-keygen -o backup-identity.txt` on a trusted recovery machine and keep this private file separately from backups and the server. Obtain its public recipient with `age-keygen -y backup-identity.txt`.
 

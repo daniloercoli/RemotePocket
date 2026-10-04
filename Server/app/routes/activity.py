@@ -29,6 +29,8 @@ SAFE_FIELDS = {
     "device_renamed": {"name"},
     "session_error": {"code"},
     "device_local_stop": {"reason"},
+    "agent_configured": {"connection_mode"},
+    "device_woken": {"channel"},
 }
 
 

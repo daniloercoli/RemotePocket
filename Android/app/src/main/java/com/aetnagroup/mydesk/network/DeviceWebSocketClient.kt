@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import com.aetnagroup.mydesk.AgentController
-import com.aetnagroup.mydesk.storage.DeviceConfigStore
+import com.aetnagroup.mydesk.BuildConfig
 import com.aetnagroup.mydesk.accessibility.MyDeskAccessibilityService
 import com.aetnagroup.mydesk.storage.DeviceConfig
 import okhttp3.OkHttpClient
@@ -17,6 +17,7 @@ import org.json.JSONObject
 class DeviceWebSocketClient(
     private val service: MyDeskAccessibilityService,
     private val config: DeviceConfig,
+    private val wakeReceipt: Pair<String, String>? = null,
 ) {
     private val client = OkHttpClient.Builder().pingInterval(20, java.util.concurrent.TimeUnit.SECONDS).build()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -27,7 +28,7 @@ class DeviceWebSocketClient(
     private var lastFrameTimeMs = 0L
 
     fun connect() {
-        if (!shouldReconnect || webSocket != null) return
+        if (!shouldReconnect || webSocket != null || !service.connection.isAllowed()) return
         mainHandler.removeCallbacksAndMessages(null)
         connection.beginConnection()
         val request = Request.Builder()
@@ -42,7 +43,11 @@ class DeviceWebSocketClient(
         shouldReconnect = false
         mainHandler.removeCallbacksAndMessages(null)
         webSocket?.close(1000, "service_destroyed")
+        // Cancel outstanding I/O as well: no background reconnect/close timeout in standby.
+        webSocket?.cancel()
         webSocket = null
+        client.connectionPool.evictAll()
+        client.dispatcher.executorService.shutdown()
     }
 
     fun send(message: JSONObject) {
@@ -108,13 +113,8 @@ class DeviceWebSocketClient(
         mainHandler.post {
             if (!current(socket)) return@post
             webSocket = null
-            service.endRemoteSession("connection_lost")
             mainHandler.removeCallbacksAndMessages(null)
-            if (invalid) {
-                shouldReconnect = false
-                DeviceConfigStore(service).invalid = true
-                AgentController.publish(AgentController.State.INVALID)
-            } else scheduleReconnect()
+            service.connection.transportLost(invalid, connection.nextRetryDelayMs())
         }
     }
 
@@ -129,8 +129,9 @@ class DeviceWebSocketClient(
             JSONObject()
                 .put("type", "device_hello")
                 .put("deviceId", config.deviceId)
-                .put("agentVersion", "0.1.0")
+                .put("agentVersion", BuildConfig.VERSION_NAME)
                 .put("androidVersion", android.os.Build.VERSION.SDK_INT)
+                .apply { wakeReceipt?.let { put("wake", JSONObject().put("channel", it.first).put("nonce", it.second)) } }
                 .put(
                     "capabilities",
                     JSONObject()
@@ -147,12 +148,12 @@ class DeviceWebSocketClient(
         val type = message.optString("type")
         if (type == "device_registered") {
             if (connection.confirmRegistration(message.optString("deviceId"))) {
-                AgentController.publish(AgentController.State.ONLINE)
+                service.connection.registered()
                 heartbeat(socket)
             }
             return
         }
-        if (!connection.registered) return
+        if (!connection.registered || !service.connection.isAllowed()) return
         if ((type.startsWith("input_") || type == "session_end") && !service.isCurrentSession(message.optString("sessionId"))) return
         android.util.Log.d("WebSocket", "Received: $type")
         when (type) {
@@ -182,15 +183,6 @@ class DeviceWebSocketClient(
         }
     }
 
-    private fun scheduleReconnect() {
-        if (!shouldReconnect) return
-        webSocket = null
-        val reconnectDelayMs = connection.nextRetryDelayMs()
-        android.util.Log.i("WebSocket", "Scheduling reconnect in ${reconnectDelayMs}ms")
-        AgentController.publish(AgentController.State.RECONNECTING)
-        mainHandler.removeCallbacksAndMessages(null)
-        mainHandler.postDelayed({ if (shouldReconnect) connect() }, reconnectDelayMs)
-    }
 }
 
 data class CapturedFrame(

@@ -19,6 +19,7 @@ class ConsoleConnection:
     connection_id: str
     owner_id: str
     websocket: WebSocket
+    watch_devices: bool = False
 
 
 @dataclass

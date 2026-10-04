@@ -2,6 +2,8 @@ package com.aetnagroup.mydesk
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -26,6 +28,11 @@ class MainActivity : Activity() {
     private lateinit var deviceName: EditText
     private lateinit var pairingCode: EditText
     private lateinit var devicePassword: EditText
+    private lateinit var keepConnected: Switch
+    private lateinit var wakeStatus: TextView
+    private lateinit var configurationStatus: TextView
+    private lateinit var retryConfiguration: Button
+    private var rendering = false
     private val listener: (AgentController.State) -> Unit = { renderState(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,8 +56,26 @@ class MainActivity : Activity() {
         text(R.string.accessibility_guide)
         button(R.string.accessibility_settings) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         if (android.os.Build.VERSION.SDK_INT < 30) text(R.string.screenshot_unavailable)
+        text(R.string.wake_setup_title)
+        keepConnected = Switch(this).apply {
+            setText(R.string.keep_connected)
+            isChecked = DeviceConfigStore(this@MainActivity).keepConnected
+            setOnCheckedChangeListener { _, checked ->
+                if (!rendering) AgentController.setKeepConnected(this@MainActivity, checked)
+            }
+            root.addView(this)
+        }
+        text(R.string.wake_guide)
+        button(R.string.sms_permission) { requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), 100) }
+        button(R.string.telegram_permission) { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        text(R.string.telegram_guide)
+        button(R.string.battery_settings) { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+        text(R.string.battery_guide)
+        configurationStatus = TextView(this).also { root.addView(it) }
+        retryConfiguration = button(R.string.retry_wake_configuration) { AgentController.retryConfiguration(this) }
         text(R.string.operation_title)
         statusText = TextView(this).also { root.addView(it) }
+        wakeStatus = TextView(this).also { root.addView(it) }
         pauseButton = button(R.string.pause_control) { AgentController.pause(this) }
         button(R.string.remove_configuration) {
             AlertDialog.Builder(this).setMessage(R.string.remove_confirmation)
@@ -71,6 +96,8 @@ class MainActivity : Activity() {
         val resource = when (state) {
             AgentController.State.UNPAIRED -> R.string.state_unpaired
             AgentController.State.ACCESSIBILITY_DISABLED -> R.string.state_accessibility
+            AgentController.State.SETUP_REQUIRED -> R.string.state_wake_setup_required
+            AgentController.State.WAITING -> R.string.state_waiting
             AgentController.State.CONNECTING -> R.string.state_connecting
             AgentController.State.ONLINE -> R.string.state_online
             AgentController.State.ACTIVE -> R.string.state_active
@@ -81,6 +108,23 @@ class MainActivity : Activity() {
         statusText.setText(resource)
         pauseButton.setText(if (DeviceConfigStore(this).paused) R.string.resume_control else R.string.pause_control)
         pauseButton.isEnabled = DeviceConfigStore(this).load() != null
+        val store = DeviceConfigStore(this)
+        rendering = true
+        keepConnected.isChecked = store.keepConnected
+        rendering = false
+        val paired = store.load() != null
+        retryConfiguration.isEnabled = paired && store.configurationPending && !store.paused
+        configurationStatus.setText(if (!paired) R.string.state_unpaired else if (store.configurationPending)
+            R.string.state_wake_setup_required else R.string.wake_configured)
+        val channel = when (store.lastWakeChannel) { "sms" -> "SMS"; "telegram" -> "Telegram"; else -> "—" }
+        val sms = if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED)
+            getString(R.string.permission_granted) else getString(R.string.permission_missing)
+        wakeStatus.text = getString(R.string.wake_status, channel, sms)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        renderState(AgentController.state)
     }
     private fun pairDevice() {
         if (pairingCall != null) return

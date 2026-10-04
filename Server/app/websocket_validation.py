@@ -17,10 +17,17 @@ class Heartbeat(Message):
     sessionId: Id | None = None
 
 
+class WakeReceipt(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    channel: Literal["sms", "telegram"]
+    nonce: str = Field(pattern=r"^[A-Za-z0-9_-]{22}$")
+
+
 class DeviceHello(Message):
     model_config = ConfigDict(extra="ignore")
     type: Literal["device_hello"]
     capabilities: dict = Field(default_factory=dict)
+    wake: WakeReceipt | None = None
 
 
 class DeviceStop(Message):
@@ -43,6 +50,7 @@ class SessionError(Message):
 
 class DeviceList(Message):
     type: Literal["device_list_request"]
+    watch: bool = False
 
 
 class SessionChallenge(Message):
