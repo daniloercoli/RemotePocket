@@ -279,4 +279,6 @@ The repository also includes these checks:
 ./scripts/test-production.sh
 ```
 
+The security check audits the pinned runtime dependencies in `requirements.lock`, requires their hashes and fails if vulnerabilities are found or the audit cannot complete. It saves JSON reports in `security-reports/` and prints affected packages, advisory IDs and fixed versions in the log. CI uploads the reports even when the job fails. Dependency fixes must include both `pyproject.toml` and the regenerated `requirements.lock` in the pushed commit; local changes are not visible to GitHub Actions.
+
 The secret scan and production smoke test require Docker. The production test uses temporary containers and certificates on ports 58080 and 58443, then removes its own containers and volumes.
