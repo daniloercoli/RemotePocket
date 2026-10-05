@@ -17,9 +17,11 @@ from app.models import (
     MfaSetup,
     RecoveryCode,
     PasswordResetToken,
+    PasswordHistory,
     User,
 )
-from app.security import hash_secret, verify_password
+from app.security import hash_password, hash_secret, verify_password
+from app.password_policy import validate_password
 from app.timeutils import naive_utc, utc_now
 
 
@@ -47,6 +49,41 @@ def decrypt(settings, value):
 
 
 class AccountService(AuthService):
+    def change_password(
+        self, user, password, new_password, code=None, recovery_code=None
+    ):
+        user = self.confirm_identity(user, password, code, recovery_code)
+        history = self.db.scalars(
+            select(PasswordHistory.password_hash)
+            .where(PasswordHistory.user_id == user.id)
+            .order_by(PasswordHistory.created_at.desc(), PasswordHistory.id.desc())
+            .limit(self.settings.password_history_count)
+        ).all()
+        valid, errors = validate_password(
+            new_password, list(history), settings=self.settings
+        )
+        if not valid:
+            raise ValueError("; ".join(errors))
+        if verify_password(new_password, user.password_hash):
+            raise ValueError("Scegli una password diversa da quella attuale")
+        user.password_hash = hash_password(new_password)
+        self._remember_password(user)
+        self.revoke_credentials(user)
+        self.db.execute(
+            update(PasswordResetToken)
+            .where(PasswordResetToken.user_id == user.id)
+            .values(used_at=utc_now())
+        )
+        from app.email_outbox import notification
+
+        notification(
+            self.db,
+            self.settings,
+            user.email if user.email_verified else None,
+            "La password del tuo account RemotePocket e' stata modificata.",
+        )
+        write_audit(self.db, "password_changed", owner_id=user.id)
+
     def revoke_credentials(self, user):
         self.session_manager.revoke_all_sessions(user.id)
         self.db.execute(

@@ -49,7 +49,7 @@ pythonpath = ["."]
 addopts = "--basetemp=.pytest_tmp"
 
 [tool.setuptools.package-data]
-app = ["static/*.html", "static/*.css", "static/*.js"]
+app = ["static/*.html", "static/*.css", "static/*.js", "static/*.svg"]
 
 [build-system]
 requires = ["setuptools>=77"]

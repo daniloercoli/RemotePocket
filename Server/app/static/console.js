@@ -41,9 +41,11 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
+function updateUI(action, data) { globalThis.RemotePocketUI?.[action]?.(data); }
 
 function log(message) {
   $("log").textContent = `${new Date().toLocaleTimeString()}  ${message}`;
+  updateUI("notify", message);
 }
 
 function saveTokens(data, persist = true) {
@@ -116,7 +118,9 @@ async function requestJson(url, method = "GET", body, authenticated = true, acce
     headers: {"Content-Type": "application/json", ...(authenticated ? {Authorization: `Bearer ${accessToken ?? state.token}`} : {})},
     ...(body === undefined ? {} : {body: JSON.stringify(body)}),
   });
-  const data = await response.json();
+  let data;
+  try { data = await response.json(); }
+  catch { throw new Error("Il servizio non risponde correttamente. Riprova tra poco."); }
   if (!response.ok) {
     const error = new Error(typeof data.detail === "string" ? data.detail : "Richiesta non valida");
     error.status = response.status;
@@ -174,6 +178,7 @@ function clearCredentials(message = "Accedi nuovamente.", {automatic = false, pr
   for (const id of ["username", "password", "email", "loginCode", "textInput", "deviceSearch"]) $(id).value = "";
   $("mfaLogin").hidden = true;
   if (typeof clearAccountState === "function") clearAccountState({preserveRecovery: automatic});
+  updateUI("signedOut", {message, automatic});
 }
 
 function syncStoredAuthentication() {
@@ -217,10 +222,12 @@ async function acceptAuthentication(data, epoch) {
     $("mfaLogin").hidden = false;
     $("loginCode").focus();
     $("password").value = "";
+    updateUI("challenge");
     return false;
   }
   clearCredentials();
   saveTokens(data);
+  updateUI("authenticated");
   const acceptedEpoch = state.authEpoch;
   connectConsoleWs();
   await refreshDevices();
@@ -356,6 +363,7 @@ function handleWsMessage(message) {
         frameWidth: 0, frameHeight: 0, frameId: -1, lastFrameUrl: null, closing: false});
     }
     selectSession(message.sessionId);
+    updateUI("sessionOpened");
     const card = Array.from($("devices").children || []).find(node => node.dataset.id === message.deviceId);
     if (card) card.querySelector("[data-error]").textContent = "Sessione aperta.";
     log("Sessione aperta.");
@@ -430,28 +438,30 @@ function renderDevices(devices) {
       item = document.createElement("div");
       item.className = "device-card";
       item.dataset.id = device.id;
-      item.innerHTML = `<h3></h3><span class="status"></span>
-        <label>Nome<input data-name="${escapeHtml(device.id)}" maxlength="200" /></label>
-        <button data-rename="${escapeHtml(device.id)}">Rinomina</button>
-        <label>Password dispositivo<input type="password" autocomplete="off" data-password="${escapeHtml(device.id)}" /></label>
-        <div class="row"><button data-start="${escapeHtml(device.id)}">Apri sessione</button>
-        <button class="danger" data-revoke="${escapeHtml(device.id)}">Revoca</button></div>
+      item.innerHTML = `<div class="device-heading"><span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg></span><div><h3></h3><span class="status"></span></div></div>
         <p data-mode></p>
-        <button data-wake="${escapeHtml(device.id)}">Attiva tramite SMS o Telegram</button>
+        <div class="device-actions"><label>Password dispositivo<input type="password" autocomplete="off" data-password="${escapeHtml(device.id)}" maxlength="200" placeholder="Password scelta nell’app Android" /></label>
+        <button data-start="${escapeHtml(device.id)}">Apri sessione</button>
+        <button data-wake="${escapeHtml(device.id)}">Attiva tramite SMS o Telegram</button></div>
         <div data-wake-panel hidden>
-          <label>Messaggio firmato da inviare al dispositivo<textarea data-wake-message readonly rows="3"></textarea></label>
-          <p data-wake-expiry></p>
-          <button data-copy-wake="${escapeHtml(device.id)}">Copia</button>
-          <p>Invia il testo con SMS o Telegram. Quando il dispositivo risponde, apri la sessione con la sua password.</p>
+          <label>Messaggio da inviare al dispositivo<textarea data-wake-message readonly rows="3"></textarea></label>
+          <p data-wake-expiry></p><button data-copy-wake="${escapeHtml(device.id)}">Copia messaggio</button>
+          <p>Invia il testo tramite SMS o Telegram. Quando il dispositivo è online, apri la sessione con la sua password.</p>
           <p data-wake-status role="status"></p>
         </div>
-        <details><summary>Dettagli</summary><pre></pre></details><p data-error role="status"></p>`;
+        <details><summary>Dettagli e impostazioni</summary>
+          <label>Nome del dispositivo<input data-name="${escapeHtml(device.id)}" maxlength="200" /></label>
+          <div class="row"><button data-rename="${escapeHtml(device.id)}">Salva nome</button><button class="danger" data-revoke="${escapeHtml(device.id)}">Revoca dispositivo</button></div>
+          <pre></pre>
+        </details><p data-error role="status"></p>`;
       item.querySelector("[data-name]").value = device.name;
     }
     item.querySelector("h3").textContent = device.name;
-    item.querySelector(".status").textContent = device.status;
+    item.querySelector(".status").textContent = ({online: "Online", offline: "Offline", in_session: "In sessione", revoked: "Revocato"})[device.status] || "Sconosciuto";
+    item.querySelector(".status").className = "status " + (["online", "offline", "in_session", "revoked"].includes(device.status) ? device.status : "");
     item.querySelector("[data-start]").disabled = device.status !== "online" || state.pendingDevices.has(device.id) || Array.from(state.sessions.values()).some(session => session.deviceId === device.id);
     item.querySelector("[data-revoke]").disabled = !!device.revoked_at;
+    item.querySelector("[data-rename]").disabled = !!device.revoked_at;
     item.querySelector("[data-mode]").textContent = device.connection_mode === "on_demand"
       ? "Attivazione su richiesta · la raggiungibilità è verificata solo al collegamento."
       : "Connessione continua";
@@ -468,8 +478,9 @@ function renderDevices(devices) {
       else if (device.status === "online" || device.status === "in_session")
         item.querySelector("[data-wake-status]").textContent = "Dispositivo collegato.";
     }
-    item.querySelector("pre").textContent = JSON.stringify({id: device.id, capacita: device.capabilities,
-      creato: device.created_at, ultima_presenza: device.last_seen_at}, null, 2);
+    const displayDate = value => value ? new Date(value).toLocaleString("it-IT") : "Mai collegato";
+    item.querySelector("pre").textContent = `ID dispositivo: ${device.id}\nAssociato: ${displayDate(device.created_at)}\nUltima presenza: ${displayDate(device.last_seen_at)}`;
+    if (!device.wake_configured && !device.revoked_at) item.querySelector("[data-mode]").textContent += " · Attivazione SMS/Telegram da configurare nell’app.";
     item.hidden = (!!status && status !== device.status) || !`${device.name} ${device.id}`.toLocaleLowerCase().includes(search);
     // Move existing nodes without replacing editable fields.
     if (root.children[position] !== item) root.insertBefore(item, root.children[position] || null);
@@ -477,6 +488,7 @@ function renderDevices(devices) {
     existing.delete(device.id);
   }
   for (const node of existing.values()) node.remove();
+  updateUI("devicesChanged");
 }
 
 async function generateWakeMessage(deviceId, card) {
@@ -622,10 +634,13 @@ function clearFrame() {
 function renderTabs() {
   const root = $("sessionTabs");
   root.textContent = "";
+  updateUI("sessionsChanged");
   for (const session of state.sessions.values()) {
     const button = document.createElement("button");
     button.textContent = `${state.devices.find(device => device.id === session.deviceId)?.name || session.deviceId}${session.closing ? " (chiusura)" : ""}`;
     button.setAttribute("role", "tab");
+    button.setAttribute("aria-controls", "remoteScreen");
+    button.tabIndex = session.sessionId === state.activeSessionId ? 0 : -1;
     button.setAttribute("aria-selected", String(session.sessionId === state.activeSessionId));
     button.onclick = () => selectSession(session.sessionId);
     root.appendChild(button);
@@ -687,9 +702,10 @@ $("pairingButton").onclick = async () => {
     const data = await postJson("/api/pairing-codes", {});
     if (epoch !== state.authEpoch) return;
     $("pairingCode").textContent = `Codice: ${data.code}\nScade: ${data.expires_at}`;
+    updateUI("pairingCreated", data);
     log("Pairing code generato.");
   } catch (error) {
-    if (epoch === state.authEpoch) log(error.message);
+    if (epoch === state.authEpoch) { log(error.message); updateUI("pairingError", error.message); }
   }
 };
 
@@ -718,9 +734,11 @@ $("devices").onclick = async (event) => {
     try {
       await requestJson(`/api/devices/${renameId}`, "PATCH", {name: event.target.closest(".device-card").querySelector("[data-name]").value});
       await refreshDevices();
-    } catch (error) { log(error.message); }
+    } catch (error) { event.target.closest(".device-card").querySelector("[data-error]").textContent = error.message; }
   }
-  if (revokeId && confirm("Revocare questo dispositivo e terminare la sua sessione?")) {
+  if (revokeId && await (globalThis.RemotePocketUI?.confirmAction
+    ? globalThis.RemotePocketUI.confirmAction("Revocare questo dispositivo?", "La connessione verrà interrotta. Per collegarlo di nuovo dovrai ripetere l’associazione.", "Revoca dispositivo")
+    : confirm("Revocare questo dispositivo e terminare la sua sessione?"))) {
     try {
       await postJson(`/api/devices/${revokeId}/revoke`, {});
       await refreshDevices();

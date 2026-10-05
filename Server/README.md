@@ -61,7 +61,13 @@ The command expires ten minutes after generation. Valid receipt starts a ten-min
 
 ## First account and mobile connection
 
-Enter a username and a strong password in the console, then create the first owner account. Email is optional. Usernames allow 3–30 letters, numbers or underscores. Account passwords need at least 8 characters, uppercase and lowercase letters, a number and a symbol. Weak, common and breached passwords are rejected.
+Open `/` to create the first account on a new installation. Later visits use `/login`; `/register` creates additional accounts with their own devices. Email is optional. Usernames allow 3–30 letters, numbers or underscores. Account passwords need at least 8 characters, uppercase and lowercase letters, a number and a symbol. Weak, common and breached passwords are rejected.
+
+The console has separate pages for the overview, devices, remote sessions, activity, account security and help. Navigation between these pages keeps live remote sessions connected. Reloading or closing the browser page ends that console connection.
+
+Use **Account e sicurezza** to verify or change your email, change your password, configure two-factor authentication and disconnect other browser logins. Changing your password signs you out of all browsers and invalidates existing password-reset links. Two-factor recovery codes appear on a dedicated page; save them before leaving it.
+
+Use **Password dimenticata?** on the login page to request recovery. Email delivery must be configured, and the account must have a verified email address. The console explains when email delivery is unavailable. Links received by email open dedicated reset and verification pages and require explicit confirmation.
 
 Log in, generate a pairing code and follow the [Android setup guide](../Android/README.md). The code is single-use and expires after 10 minutes by default. Set a separate device password in the app and use that password to open sessions from the console.
 

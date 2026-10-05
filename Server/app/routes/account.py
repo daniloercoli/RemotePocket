@@ -14,9 +14,10 @@ from app.auth_service import AuthenticationError
 from app.audit import write_audit
 from app.dependencies import get_current_user, get_db
 from app.email_outbox import enqueue, notification, queue_verification
-from app.models import MfaChallenge, User
+from app.models import LoginSession, MfaChallenge, User
 from app.rate_limiting import enforce_limit, rate_limit, recipient_limit
 from app.security import hash_secret, verify_access_token
+from app.timeutils import iso_utc, utc_now
 
 router = APIRouter(prefix="/api/auth", tags=["account"])
 DB = Annotated[Session, Depends(get_db)]
@@ -40,6 +41,10 @@ class Confirmation(BaseModel):
 
 class EmailChange(EmailRequest, Confirmation):
     pass
+
+
+class PasswordChange(Confirmation):
+    new_password: str = Field(min_length=8, max_length=200)
 
 
 class TokenRequest(BaseModel):
@@ -86,6 +91,74 @@ def config(request: Request, db: DB):
         "email_available": settings.email_available,
         "totp_available": bool(settings.encryption_key),
     }
+
+
+@router.post(
+    "/password-change",
+    dependencies=[rate_limit("password-change", 5, 3600, per_user=True)],
+)
+def change_password(payload: PasswordChange, request: Request, db: DB, user: Owner):
+    def operation():
+        AccountService(db, request.app.state.settings).change_password(
+            user,
+            payload.password,
+            payload.new_password,
+            payload.code,
+            payload.recovery_code,
+        )
+        return {
+            "message": "Password aggiornata. Accedi nuovamente su tutti i dispositivi."
+        }
+
+    return execute(db, operation)
+
+
+@router.get(
+    "/sessions", dependencies=[rate_limit("login-sessions", 30, 60, per_user=True)]
+)
+def login_sessions(request: Request, db: DB, user: Owner):
+    current = session_id(request)
+    sessions = db.scalars(
+        select(LoginSession)
+        .where(
+            LoginSession.user_id == user.id,
+            LoginSession.revoked_at.is_(None),
+            LoginSession.expires_at > utc_now(),
+        )
+        .order_by(LoginSession.created_at.desc())
+    ).all()
+    return {
+        "sessions": [
+            {
+                "id": item.id,
+                "current": item.id == current,
+                "created_at": iso_utc(item.created_at),
+                "expires_at": iso_utc(item.expires_at),
+                "user_agent": item.user_agent,
+                "ip_address": item.ip_address,
+            }
+            for item in sessions
+        ]
+    }
+
+
+@router.post(
+    "/sessions/{login_id}/revoke",
+    dependencies=[rate_limit("revoke-login", 10, 60, per_user=True)],
+)
+def revoke_login(login_id: str, request: Request, db: DB, user: Owner):
+    service = AccountService(db, request.app.state.settings)
+    service._lock_user(user.id)
+    target = db.scalar(
+        select(LoginSession).where(
+            LoginSession.id == login_id, LoginSession.user_id == user.id
+        )
+    )
+    if target is None:
+        raise HTTPException(404, "Accesso non trovato")
+    service.session_manager.revoke_session(target.id, "owner_revoked")
+    db.commit()
+    return {"message": "Accesso revocato", "current": target.id == session_id(request)}
 
 
 @router.post(

@@ -11,10 +11,10 @@ function actionButton(id, statusId, operation) {
   $(id).onclick = async () => {
     const currentEpoch = () => statusId === "recoveryStatus" ? recoveryEpoch : statusId === "activityError" ? activityEpoch : state.authEpoch;
     const epoch = currentEpoch();
-    $(id).disabled = true; $(statusId).textContent = "Operazione in corso…";
+    $(id).disabled = true; $(statusId).className = "notice info"; $(statusId).textContent = "Operazione in corso…";
     try { await operation(epoch); if (epoch === currentEpoch() && $(statusId).textContent === "Operazione in corso…") $(statusId).textContent = "Operazione completata."; }
-    catch (error) { if (epoch === currentEpoch()) $(statusId).textContent = error.message; }
-    finally { $(id).disabled = false; }
+    catch (error) { if (epoch === currentEpoch()) { $(statusId).className = "notice error"; $(statusId).textContent = error.message; } }
+    finally { $(id).disabled = false; if (epoch === currentEpoch()) updateUI("actionFinished", {id, statusId}); }
   };
 }
 function factor(value) { return /^\d{6}$/.test(value.trim()) ? {code: value.trim()} : {recovery_code: value.trim()}; }
@@ -42,7 +42,7 @@ function clearAccountState({preserveRecovery = false} = {}) {
 function showCodes(data) {
   clearCredentials();
   $("recoveryCodes").textContent = "Salva questi codici monouso: saranno mostrati una sola volta.\n" + data.recovery_codes.join("\n");
-  $("dismissCodes").hidden = false; $("recoveryCodes").focus();
+  $("dismissCodes").hidden = false; updateUI("recoveryCodes"); $("recoveryCodes").focus();
 }
 async function requestRecoveryCodes(url, body) {
   // These two mutations revoke the session themselves. Accept their one-time
@@ -55,6 +55,7 @@ async function showAccount() {
   const epoch = state.authEpoch;
   const a = await getJson("/api/auth/me");
   if (epoch !== state.authEpoch) return;
+  updateUI("accountLoaded", a);
   $("accountStatus").textContent = `${a.username} · ${a.email || "Nessuna email"} · ${a.email_verified ? "verificata" : "Recupero password non disponibile senza email verificata"} · In attesa: ${a.pending_email || "nessuna"} · TOTP ${a.totp_enabled ? "attiva" : "disattivata"}`;
 }
 actionButton("registerButton", "authStatus", async () => {
@@ -80,20 +81,22 @@ actionButton("consumeReset", "recoveryStatus", async epoch => {
   if (epoch !== recoveryEpoch) return;
   linkToken = ""; $("newPassword").value = ""; $("consumeReset").hidden = true; clearCredentials();
   $("recoveryStatus").textContent = "Password aggiornata. Accedi nuovamente con il secondo fattore, se attivo.";
+  updateUI("recoveryCompleted", {action: "reset"});
 });
-actionButton("consumeVerify", "recoveryStatus", async epoch => { await postJson("/api/auth/email-verify", {token: linkToken}, false); if (epoch !== recoveryEpoch) return; linkToken = ""; $("consumeVerify").hidden = true; });
+actionButton("consumeVerify", "recoveryStatus", async epoch => { await postJson("/api/auth/email-verify", {token: linkToken}, false); if (epoch !== recoveryEpoch) return; linkToken = ""; $("consumeVerify").hidden = true; updateUI("recoveryCompleted", {action: "verify"}); });
 actionButton("setupMfa", "accountError", async epoch => {
   const data = await postJson("/api/auth/mfa/setup", {password: $("currentPassword").value});
   if (epoch !== state.authEpoch) return;
   if (qrUrl) URL.revokeObjectURL(qrUrl);
   qrUrl = URL.createObjectURL(new Blob([data.qr_svg], {type: "image/svg+xml"})); $("qrImage").src = qrUrl; $("qrImage").hidden = false;
   $("manualSecret").textContent = `Segreto manuale (10 minuti): ${data.secret}`; $("confirmMfa").hidden = false;
+  updateUI("mfaSetup");
   $("accountError").textContent = "Aggiungi RemotePocket all'autenticatore e inserisci il codice nel campo TOTP.";
 });
 actionButton("confirmMfa", "accountError", () => requestRecoveryCodes("/api/auth/mfa/confirm", factor($("factorCode").value)));
 actionButton("regenerateMfa", "accountError", () => requestRecoveryCodes("/api/auth/mfa/recovery-codes/regenerate", confirmation()));
 actionButton("disableMfa", "accountError", async epoch => { await postJson("/api/auth/mfa/disable", confirmation()); if (epoch === state.authEpoch) clearCredentials(); });
-$("dismissCodes").onclick = () => { $("recoveryCodes").textContent = ""; $("dismissCodes").hidden = true; $("username").focus(); };
+$("dismissCodes").onclick = () => { $("recoveryCodes").textContent = ""; $("dismissCodes").hidden = true; updateUI("codesDismissed"); $("username").focus(); };
 function currentActivityFilters() {
   return JSON.stringify(activityFilterIds.map(id => $(id).value));
 }
@@ -127,7 +130,8 @@ async function refreshActivity(more = false, {automatic = false} = {}) {
     const [events, summary] = await Promise.all([getJson(`/api/activity?${params}`), getJson(`/api/activity/summary?${summaryQuery}`)]);
     if (!current()) return;
     if (!append) $("activityEvents").textContent = "";
-    for (const event of events.events) { const row = document.createElement("p"); row.textContent = `${new Date(event.created_at).toLocaleString()} · ${event.event_type} · ${event.device_id || "account"} · ${JSON.stringify(event.details)}`; $("activityEvents").appendChild(row); }
+    for (const event of events.events) { if (globalThis.RemotePocketUI?.appendActivity) { globalThis.RemotePocketUI.appendActivity(event); continue; } const row = document.createElement("p"); row.textContent = `${new Date(event.created_at).toLocaleString()} · ${event.event_type} · ${event.device_id || "account"} · ${JSON.stringify(event.details)}`; $("activityEvents").appendChild(row); }
+    updateUI("activityLoaded", {events, append});
     activityCursor = events.next_cursor; $("activityMore").hidden = !activityCursor;
     activityPages = append ? activityPages + 1 : 1;
     $("activityRefreshStatus").textContent = activityPages > 1
@@ -147,6 +151,8 @@ setInterval(() => {
   }
 }, 30000);
 requestJson("/api/auth/config", "GET", undefined, false).then(config => {
-  $("bootstrapButton").hidden = !config.bootstrap_available; $("setupMfa").disabled = !config.totp_available;
+  state.publicConfig = config;
+  updateUI("configured", config);
+  $("bootstrapButton").hidden = !!globalThis.RemotePocketUI || !config.bootstrap_available; $("setupMfa").disabled = !config.totp_available;
   for (const id of ["requestReset", "changeEmail", "resendEmail"]) $(id).disabled = !config.email_available;
-}).catch(error => { $("accountError").textContent = error.message; });
+}).catch(error => { $("accountError").textContent = error.message; updateUI("configFailed", error.message); });

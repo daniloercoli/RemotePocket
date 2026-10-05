@@ -1,115 +1,131 @@
 <!doctype html>
 <html lang="it">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RemotePocket Console</title>
-    <link rel="stylesheet" href="/static/console.css" />
-  </head>
-  <body>
-    <header>
-      <h1>RemotePocket Console</h1>
-      <span id="connectionBadge" class="status">non connesso</span>
-    </header>
-
-    <main>
-      <div class="stack">
-        <section class="panel stack">
-          <h2>Account</h2>
-          <label>Email facoltativa<input id="email" type="email" autocomplete="email" /></label>
-          <label>
-            Username
-            <input id="username" autocomplete="username" value="admin" />
-          </label>
-          <label>
-            Password
-            <input id="password" type="password" autocomplete="current-password" />
-          </label>
-          <p id="authStatus" role="status"></p><p class="log">Per creare un owner: username di 3–30 lettere, numeri o underscore; password lunga e imprevedibile con maiuscole, minuscole, numeri e simboli.</p>
-          <div class="row">
-            <button class="primary" id="loginButton">Login</button>
-            <button id="bootstrapButton">Crea primo owner</button><button id="registerButton">Registrati</button>
-            <button id="logoutButton">Esci</button>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#12283e" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>RemotePocket Console · Gestione dispositivi</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/console.css" />
+  <script src="/static/device-auth.js" defer></script>
+  <script src="/static/console.js" defer></script>
+  <script src="/static/account.js" defer></script>
+  <script src="/static/application.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#mainContent">Vai al contenuto</a>
+<svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol><symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4M11 19h2"/></symbol><symbol id="i-screen" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4m-3-11 5 4-5 3z"/></symbol><symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol><symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z"/><path d="m8 12 3 3 5-6"/></symbol><symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4m0 3h.01"/></symbol><symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 4H4v16h5m6-12 4 4-4 4M9 12h11"/></symbol><symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol><symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></symbol><symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7a8 8 0 1 0 0 10M20 3v5h-5"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></symbol><symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="8" r="5"/><path d="m12 12 9 9m-5-5 3-3m-6 0 3-3"/></symbol><symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></symbol><symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0m-10 4a5 5 0 0 1 6 0m-3 4h.01"/></symbol><symbol id="i-back" viewBox="0 0 24 24"><path d="M20 12H4m6-6-6 6 6 6"/></symbol></defs></svg>
+<noscript><div class="notice warning">Abilita JavaScript nel browser per usare la console RemotePocket.</div></noscript>
+<div id="bootScreen" class="boot-screen"><span class="brand-mark">RP</span><p>Preparazione della console…</p></div>
+<div id="authShell" class="auth-shell" hidden>
+  <div class="auth-main">
+    <header class="auth-header"><a class="brand" href="/" data-route><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg></span><span>RemotePocket<span class="brand-label">CONSOLE</span></span></a><a href="/login" data-route class="subtle-link">Area personale</a></header>
+    <main id="authContent" class="auth-content">
+      <section id="credentialsPage" hidden>
+        <div class="eyebrow" id="authEyebrow">BENTORNATO</div>
+        <h1 id="authTitle" tabindex="-1">Il tuo spazio di controllo.</h1>
+        <p class="intro" id="authDescription">Accedi per ritrovare i tuoi dispositivi, ovunque siano.</p>
+        <div id="setupNotice" class="notice info" hidden>Questa è una nuova installazione. Crea il primo account per iniziare.</div>
+        <form id="credentialsForm" class="form-stack">
+          <label for="username">Nome utente<input id="username" name="username" autocomplete="username" required minlength="3" maxlength="30" pattern="[a-zA-Z0-9_]{3,30}" placeholder="Il tuo nome utente" /></label>
+          <label id="emailField" for="email" hidden>Email <span class="optional">facoltativa</span><input id="email" name="email" type="email" autocomplete="email" maxlength="255" placeholder="nome@esempio.it" /><span class="field-help">Verifica l’indirizzo per poter recuperare la password.</span></label>
+          <label for="password">Password<span class="password-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="200" placeholder="Inserisci la password" /><button type="button" class="reveal" data-reveal="password" aria-label="Mostra password" aria-pressed="false">Mostra</button></span></label>
+          <div id="newAccountFields" hidden>
+            <label for="passwordConfirm">Conferma password<input id="passwordConfirm" type="password" autocomplete="new-password" maxlength="200" placeholder="Ripeti la password" /></label>
+            <p class="field-help" id="passwordRequirements">Almeno 8 caratteri con maiuscole, minuscole, un numero e un simbolo. Scegli una password lunga e non già usata.</p>
           </div>
-        </section>
-
-        <section class="panel stack" id="mfaLogin" hidden>
-          <h2>Secondo fattore</h2><label>Codice TOTP o recupero<input id="loginCode" autocomplete="one-time-code" /></label>
-          <button id="verifyMfaButton">Completa accesso</button>
-        </section>
-        <details class="panel" id="accountPanel">
-          <summary>Impostazioni account</summary><div class="stack"><button id="accountRefresh">Mostra account</button><p id="accountStatus" role="status"></p>
-          <label>Password attuale<input id="currentPassword" type="password" autocomplete="current-password" /></label>
-          <label>TOTP o codice di recupero<input id="factorCode" autocomplete="one-time-code" /></label>
-          <label>Nuova email<input id="newEmail" type="email" /></label>
-          <button id="changeEmail">Cambia email</button><button id="resendEmail">Reinvia verifica</button>
-          <button id="setupMfa">Attiva TOTP</button><img id="qrImage" alt="QR per autenticatore" hidden />
-          <p id="manualSecret"></p><button id="confirmMfa" hidden>Conferma attivazione</button>
-          <button id="disableMfa">Disattiva TOTP</button><button id="regenerateMfa">Rigenera codici di recupero</button>
-          <pre id="recoveryCodes" tabindex="0"></pre><button id="dismissCodes" hidden>Ho salvato i codici: nuovo accesso</button>
-          <p id="accountError" role="status"></p>
-        </div></details>
-        <details class="panel" id="recoveryPanel">
-          <summary>Recupero e verifica email</summary><div class="stack">
-          <label>Email verificata<input id="recoveryEmail" type="email" /></label><button id="requestReset">Invia recupero</button>
-          <label>Nuova password<input id="newPassword" type="password" autocomplete="new-password" /></label>
-          <button id="consumeReset" hidden>Reimposta password</button><button id="consumeVerify" hidden>Conferma email</button>
-          <p id="recoveryStatus" role="status"></p>
-        </div></details>
-        <section class="panel stack">
-          <h2>Pairing</h2>
-          <button id="pairingButton">Crea pairing code</button>
-          <div id="pairingCode" class="log">Nessun codice generato.</div>
-        </section>
-
-        <section class="panel stack">
-          <div class="row space-between">
-            <h2>Dispositivi</h2>
-            <button id="refreshButton">Aggiorna</button>
-          </div>
-          <label>Cerca nome o ID<input id="deviceSearch" type="search" /></label>
-          <label>Stato<select id="deviceStatus"><option value="">Tutti</option><option value="online">Online</option><option value="offline">Offline</option><option value="in_session">Occupati</option><option value="revoked">Revocati</option></select></label>
-          <label>Ordine<select id="deviceSort"><option value="name">Nome</option><option value="seen">Ultima presenza</option></select></label>
-          <div id="devices" class="device-list"></div>
-        </section>
-      </div>
-
-      <section class="screen-shell">
-        <div id="sessionTabs" role="tablist" aria-label="Sessioni remote"></div><div class="screen-toolbar">
-          <div class="stack compact">
-            <h2 id="sessionTitle">Nessuna sessione</h2>
-            <span id="frameInfo" class="status">nessun frame</span>
-          </div>
-          <button class="danger" id="endSessionButton">Chiudi sessione</button>
-        </div>
-
-        <div class="screen-stage">
-          <img id="screenImage" alt="Schermo remoto" hidden />
-          <div id="screenEmpty" class="screen-empty">Apri una sessione per vedere lo schermo remoto.</div>
-        </div>
-
-        <div class="remote-controls">
-          <div class="row">
-            <button data-action="BACK">Indietro</button>
-            <button data-action="HOME">Home</button>
-            <button data-action="RECENTS">App recenti</button>
-          </div>
-          <div class="row">
-            <input id="textInput" placeholder="Testo da inviare" />
-            <button id="sendTextButton">Invia testo</button>
-          </div>
-          <div id="log" class="log">Pronto.</div>
-        </div>
+          <div id="loginLinks" class="row justify-end"><a href="/forgot-password" data-route>Password dimenticata?</a></div>
+          <p id="authStatus" role="status" class="notice error"></p>
+          <button class="primary full" type="submit" id="credentialsSubmit"><span id="credentialsSubmitLabel">Accedi</span><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+          <button id="loginButton" type="button" hidden>Accedi</button><button id="bootstrapButton" type="button" hidden>Crea primo account</button><button id="registerButton" type="button" hidden>Registrati</button>
+        </form>
+        <p id="registrationLink" class="auth-switch">Non hai un account? <a href="/register" data-route>Crea un account</a></p>
+        <p id="signInLink" class="auth-switch" hidden>Hai già un account? <a href="/login" data-route>Accedi</a></p>
+      </section>
+      <section id="mfaLogin" hidden>
+        <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg></span><div class="eyebrow">VERIFICA IN DUE PASSAGGI</div>
+        <h1 tabindex="-1">Un’ultima conferma.</h1><p class="intro">Inserisci il codice della tua app di autenticazione oppure uno dei codici di recupero.</p>
+        <form id="mfaForm" class="form-stack"><label for="loginCode">Codice di verifica<input id="loginCode" autocomplete="one-time-code" required maxlength="128" spellcheck="false" placeholder="Codice TOTP o di recupero" /></label><p id="mfaStatus" role="status" class="notice error"></p><button class="primary full" id="verifyMfaButton" type="submit">Verifica e accedi<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></form>
+        <a href="/login" data-route class="back-link"><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg>Torna all’accesso</a>
+      </section>
+      <section id="recoveryPanel" hidden>
+        <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg></span><div class="eyebrow" id="recoveryEyebrow">RECUPERO ACCOUNT</div>
+        <h1 id="recoveryTitle" tabindex="-1">Ritrova il tuo accesso.</h1><p id="recoveryDescription" class="intro">Ti invieremo un link all’indirizzo email verificato del tuo account.</p>
+        <div id="emailUnavailable" class="notice warning" hidden>Il recupero via email non è disponibile su questa installazione. Contatta chi gestisce il servizio per configurare l’invio delle email.</div>
+        <div id="invalidLink" class="notice warning" hidden>Il link è incompleto o non è più disponibile in questa scheda. Apri il link ricevuto via email oppure richiedine uno nuovo.</div>
+        <form id="recoveryForm" class="form-stack">
+          <label id="recoveryEmailField" for="recoveryEmail">Email verificata<input id="recoveryEmail" type="email" autocomplete="email" maxlength="255" placeholder="nome@esempio.it" /></label>
+          <div id="resetFields" class="form-stack" hidden><label for="newPassword">Nuova password<input id="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="200" /></label><label for="newPasswordConfirm">Conferma nuova password<input id="newPasswordConfirm" type="password" autocomplete="new-password" maxlength="200" /></label><p class="field-help">Almeno 8 caratteri, maiuscole, minuscole, un numero e un simbolo. Non riutilizzare una password precedente.</p></div>
+          <p id="recoveryStatus" role="status" class="notice info"></p>
+          <button id="requestReset" type="submit" class="primary full">Invia link di recupero<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+          <button id="consumeReset" type="submit" class="primary full" hidden>Salva la nuova password</button><button id="consumeVerify" type="submit" class="primary full" hidden>Conferma indirizzo email</button>
+        </form>
+        <a href="/forgot-password" id="newRecoveryLink" data-route hidden>Richiedi un nuovo link</a>
+        <a href="/login" data-route class="back-link"><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg>Torna all’accesso</a>
+      </section>
+      <section id="codesPage" hidden><span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-key"/></svg></span><div class="eyebrow">CONSERVA IL TUO ACCESSO</div><h1 tabindex="-1">I tuoi codici di recupero.</h1><p class="intro">Salvali in un luogo sicuro: ogni codice può essere usato una sola volta. Dopo questa schermata non potrai più visualizzarli.</p><pre id="recoveryCodes" class="recovery-codes" tabindex="0"></pre><button id="copyRecoveryCodes" class="full"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copia i codici</button><button id="dismissCodes" class="primary full" hidden>Ho salvato i codici · Accedi</button></section>
+    </main>
+    <footer class="auth-footer"><span>RemotePocket · I tuoi dispositivi, a portata di mano.</span><span>Software libero · GPLv3</span></footer>
+  </div>
+  <aside class="auth-story" aria-label="Benvenuto in RemotePocket">
+    <div class="story-top"><span class="pill">CONTROLLO REMOTO, PERSONALE.</span><span class="story-number">01 — CONNETTI</span></div>
+    <div class="story-copy"><h2>Vicino ai tuoi dispositivi.<br /><span>Anche da lontano.</span></h2><p>Un unico spazio per collegare, gestire e assistere i tuoi dispositivi Android.</p></div>
+    <div class="connection-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="art-console"><div class="art-bar"><i></i><i></i><i></i><span>RemotePocket</span></div><div class="art-body"><div class="art-rail"><b></b><b></b><b></b></div><div class="art-lines"><strong>Il tuo spazio.</strong><span></span><span></span><div class="art-device"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg><div>Android<small>Pronto a connettersi</small></div><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></div></div></div></div><div class="art-phone"><div class="phone-notch"></div><div class="phone-glyph"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg></div><strong>RemotePocket</strong><span>Il controllo è nelle tue mani.</span><div class="phone-home"></div></div><div class="art-link"><svg class="icon" aria-hidden="true"><use href="#i-wifi"/></svg></div></div>
+    <div class="story-bottom"><div><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span>Accesso protetto<br /><small>Password e verifica in due passaggi</small></span></div><p>Assistenza consapevole.<br />Solo sui dispositivi che sei autorizzato a gestire.</p></div>
+  </aside>
+</div>
+<div id="appShell" class="app-shell" hidden>
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="/" data-route><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg></span><span>RemotePocket<span class="brand-label">CONSOLE</span></span></a>
+    <div class="workspace-label">IL TUO SPAZIO</div>
+    <nav aria-label="Navigazione principale"><a href="/app" data-route><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg><span>Panoramica</span></a><a href="/app/devices" data-route><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg><span>Dispositivi</span></a><a href="/app/sessions" data-route><svg class="icon" aria-hidden="true"><use href="#i-screen"/></svg><span>Sessioni remote</span><span id="sessionCount" class="nav-count" hidden>0</span></a><a href="/app/activity" data-route><svg class="icon" aria-hidden="true"><use href="#i-activity"/></svg><span>Attività</span></a></nav>
+    <div class="workspace-label">PREFERENZE</div><nav aria-label="Impostazioni"><a href="/app/account" data-route><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span>Account e sicurezza</span></a><a href="/app/help" data-route><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg><span>Guida rapida</span></a></nav>
+    <div class="sidebar-bottom"><div class="sidebar-tip">Il tuo prossimo collegamento<br /><strong>inizia da qui.</strong><button type="button" data-pairing>Associa un dispositivo <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button></div><a href="/app/account" data-route class="profile"><span id="profileAvatar" class="avatar">RP</span><span><strong id="profileName">Il tuo account</strong><small>Account personale</small></span><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+  </aside>
+  <div class="app-body">
+    <header class="topbar"><div class="row"><button id="menuButton" class="icon-button mobile-only" aria-label="Apri navigazione" aria-controls="sidebar" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button><span class="breadcrumb">Console <span>/</span> <strong id="breadcrumbTitle">Panoramica</strong></span></div><div class="row"><span id="connectionBadge" class="status">Connessione in corso</span><button id="logoutButton" class="icon-button" aria-label="Esci dall’account" title="Esci dall’account"><svg class="icon" aria-hidden="true"><use href="#i-logout"/></svg></button></div></header>
+    <main id="mainContent" class="app-content" tabindex="-1">
+      <section data-page="dashboard" hidden>
+        <div class="page-heading"><div><div class="eyebrow">IL TUO CENTRO DI CONTROLLO</div><h1 id="welcomeTitle">Tutto sotto controllo.</h1><p>Una vista d’insieme dei tuoi dispositivi e delle tue connessioni.</p></div><button class="primary" data-pairing><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Associa dispositivo</button></div>
+        <div class="stats-grid"><article class="stat-card"><span>Dispositivi associati</span><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg><strong id="statDevices">0</strong><small>Nel tuo spazio personale</small></article><article class="stat-card"><span>Online adesso</span><svg class="icon" aria-hidden="true"><use href="#i-wifi"/></svg><strong id="statOnline">0</strong><small>Pronti per una connessione</small></article><article class="stat-card"><span>Sessioni in questa console</span><svg class="icon" aria-hidden="true"><use href="#i-screen"/></svg><strong id="statSessions">0</strong><small>Controllo remoto in corso</small></article></div>
+        <div class="dashboard-grid"><section class="panel"><div class="panel-heading"><div><h2>I tuoi dispositivi</h2><p>Un collegamento, quando serve.</p></div><a href="/app/devices" data-route>Vedi tutti <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div><div id="dashboardDevices"></div></section><section class="getting-started"><span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg></span><div class="eyebrow">INIZIA DA QUI</div><h2>Il primo collegamento,<br />in tre passi.</h2><ol class="steps"><li><span>01</span><div><strong>Installa l’app Android</strong><p>Apri RemotePocket Agent sul dispositivo.</p></div></li><li><span>02</span><div><strong>Associa il dispositivo</strong><p>Usa un codice monouso e scegli la sua password.</p></div></li><li><span>03</span><div><strong>Avvia una sessione</strong><p>Attiva il dispositivo e collegati dalla console.</p></div></li></ol><a href="/app/help" data-route>Leggi la guida completa <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></section></div>
+        <div class="security-banner"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><div><h3>Un piccolo passo per un account più sicuro.</h3><p>Aggiungi un’email verificata e attiva l’autenticazione a due fattori.</p></div><a href="/app/account" data-route class="button">Gestisci sicurezza <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+      </section>
+      <section data-page="devices" hidden>
+        <div class="page-heading"><div><div class="eyebrow">CONNESSIONI PERSONALI</div><h1>Dispositivi</h1><p>Gestisci i collegamenti e avvia l’assistenza da un unico posto.</p></div><button class="primary" data-pairing><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Associa dispositivo</button></div>
+        <div class="filter-bar"><label class="search-field" for="deviceSearch"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><span class="sr-only">Cerca nome o ID</span><input id="deviceSearch" type="search" placeholder="Cerca un dispositivo…" /></label><label for="deviceStatus"><span class="sr-only">Stato</span><select id="deviceStatus"><option value="">Tutti gli stati</option><option value="online">Online</option><option value="offline">Offline</option><option value="in_session">In sessione</option><option value="revoked">Revocati</option></select></label><label for="deviceSort"><span class="sr-only">Ordina per</span><select id="deviceSort"><option value="name">Nome A–Z</option><option value="seen">Ultima presenza</option></select></label><button id="refreshButton" aria-label="Aggiorna dispositivi" title="Aggiorna dispositivi"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
+        <p id="devicesCount" class="results-caption" aria-live="polite"></p><div id="devices" class="device-list"></div><div id="devicesEmpty" class="empty-state" hidden><span class="empty-icon"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg></span><h2 id="devicesEmptyTitle">Qui troverai i tuoi dispositivi.</h2><p id="devicesEmptyDescription">Associa il primo dispositivo Android per iniziare.</p><button class="primary" id="emptyPairing" data-pairing><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Associa il primo dispositivo</button></div>
+      </section>
+      <section data-page="sessions" hidden>
+        <div class="page-heading"><div><div class="eyebrow">IL DISPOSITIVO, DAVANTI A TE</div><h1>Sessioni remote</h1><p>Passa da una sessione all’altra senza interrompere il collegamento.</p></div><a class="button" href="/app/devices" data-route>Vai ai dispositivi <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+        <section class="screen-shell"><div id="sessionTabs" role="tablist" aria-label="Sessioni remote"></div><div class="screen-toolbar"><div><h2 id="sessionTitle">Nessuna sessione</h2><span id="frameInfo" class="subtle">In attesa di una connessione</span></div><button class="danger" id="endSessionButton">Chiudi sessione</button></div><div class="screen-stage" role="tabpanel" id="remoteScreen" aria-label="Schermo del dispositivo"><img id="screenImage" alt="Schermo del dispositivo remoto. Tocca per interagire." hidden /><div id="screenEmpty" class="screen-empty"><svg class="icon" aria-hidden="true"><use href="#i-screen"/></svg><h2>Pronto quando lo sei tu.</h2><p>Apri una sessione dalla pagina Dispositivi.<br />Lo schermo Android apparirà qui.</p><a href="/app/devices" data-route class="button">Scegli un dispositivo <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div></div><div class="remote-controls"><div class="row"><button data-action="BACK">Indietro</button><button data-action="HOME">Home</button><button data-action="RECENTS">App recenti</button></div><form id="remoteTextForm" class="remote-text"><label for="textInput" class="sr-only">Testo da inviare al dispositivo</label><input id="textInput" placeholder="Scrivi un testo da inviare al dispositivo…" maxlength="10000" /><button type="submit" id="sendTextButton" class="primary">Invia testo</button></form><p class="field-help">Tocca lo schermo per interagire. Tieni il dispositivo sbloccato.</p><div id="log" class="log" role="status">Pronto.</div></div></section>
+      </section>
+      <section data-page="activity" id="activityPanel" hidden>
+        <div class="page-heading"><div><div class="eyebrow">LA STORIA DEI TUOI COLLEGAMENTI</div><h1>Attività</h1><p>Accessi, dispositivi e sessioni. Consulta gli eventi degli ultimi 7 giorni o scegli un intervallo fino a 90 giorni.</p></div><button id="activityRefresh"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>Aggiorna attività</button></div>
+        <div class="panel activity-filters"><label for="activityStart">Dal<input id="activityStart" type="datetime-local" /></label><label for="activityEnd">Al<input id="activityEnd" type="datetime-local" /></label><label for="activityType">Tipo di evento<select id="activityType"><option value="">Tutti gli eventi</option><option value="login_success">Accesso riuscito</option><option value="login_failed">Accesso non riuscito</option><option value="session_opened">Sessione remota aperta</option><option value="session_closed">Sessione remota chiusa</option><option value="device_registered">Dispositivo associato</option><option value="device_revoked">Dispositivo revocato</option><option value="device_woken">Dispositivo attivato</option><option value="password_changed">Password modificata</option></select></label><label for="activityDevice">ID dispositivo<input id="activityDevice" placeholder="Tutti i dispositivi" maxlength="64" /></label></div>
+        <p id="activityRefreshStatus" role="status" class="notice info"></p><p id="activitySummary" class="results-caption"></p><p id="activityError" role="status" class="notice error"></p><div class="panel activity-feed"><div class="panel-heading"><h2>Registro eventi</h2><span class="subtle">Dal più recente</span></div><div id="activityEvents"></div><div class="center"><button id="activityMore" hidden>Carica altri eventi</button></div></div>
+      </section>
+      <section data-page="account" id="accountPanel" hidden>
+        <div class="page-heading"><div><div class="eyebrow">IL TUO PROFILO</div><h1>Account e sicurezza</h1><p>Proteggi l’accesso e mantieni aggiornati i tuoi dati.</p></div><button id="accountRefresh"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>Aggiorna</button></div>
+        <p id="accountError" role="status" class="notice info"></p><p id="accountStatus" class="sr-only" role="status"></p>
+        <section class="panel account-profile"><span id="accountAvatar" class="avatar large">RP</span><div><h2 id="accountUsername">Il tuo account</h2><p id="accountEmail">Nessuna email associata</p></div><span id="emailBadge" class="status">Email da verificare</span></section>
+        <div class="settings-grid"><section class="panel"><div class="panel-heading"><div><h2>Indirizzo email</h2><p>Per verifiche e recupero dell’account.</p></div><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg></div><p id="pendingEmail" class="notice warning" hidden></p><p id="accountEmailUnavailable" class="notice warning" hidden>L’invio email non è configurato. Rivolgiti a chi gestisce questa installazione.</p><form id="emailChangeForm" class="form-stack"><label for="newEmail">Nuovo indirizzo email<input id="newEmail" type="email" autocomplete="email" maxlength="255" /></label><p class="field-help">Per confermare una modifica, compila la sezione «Conferma la tua identità».</p><div class="row"><button id="changeEmail" type="submit" class="primary">Aggiorna email</button><button id="resendEmail" type="button">Reinvia verifica</button></div></form></section>
+        <section class="panel"><div class="panel-heading"><div><h2>Verifica in due passaggi</h2><p>Una protezione in più per il tuo account.</p></div><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg></div><span id="mfaBadge" class="status">Non attiva</span><p class="section-description">Usa un’app di autenticazione per generare un codice a ogni accesso. Puoi conservare dei codici di recupero per le emergenze.</p><p id="totpUnavailable" class="notice warning" hidden>La verifica in due passaggi non è disponibile su questa installazione.</p><div class="row"><button id="setupMfa" class="primary">Attiva autenticazione</button><button id="regenerateMfa" hidden>Rigenera codici</button><button id="disableMfa" class="danger" hidden>Disattiva</button></div><div id="mfaSetupPanel" class="mfa-setup" hidden><h3>Collega la tua app di autenticazione</h3><p>Scansiona il QR, poi inserisci il codice a 6 cifre nel campo di conferma dell’identità.</p><img id="qrImage" alt="QR per configurare l’app di autenticazione" hidden /><p id="manualSecret" class="mono"></p><button id="confirmMfa" class="primary" hidden>Conferma attivazione</button></div></section>
+        <section class="panel identity-panel"><div class="panel-heading"><div><h2>Conferma la tua identità</h2><p>Richiesta per modificare email, password o secondo fattore.</p></div><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg></div><div class="form-stack"><label for="currentPassword">Password attuale<input id="currentPassword" type="password" autocomplete="current-password" maxlength="200" /></label><label for="factorCode">Codice TOTP o di recupero <span class="optional">se attivo</span><input id="factorCode" autocomplete="one-time-code" maxlength="128" /></label></div></section>
+        <section class="panel"><div class="panel-heading"><div><h2>Password</h2><p>Scegli una password lunga e unica.</p></div><svg class="icon" aria-hidden="true"><use href="#i-key"/></svg></div><form id="changePasswordForm" class="form-stack"><label for="accountNewPassword">Nuova password<input id="accountNewPassword" type="password" autocomplete="new-password" required minlength="8" maxlength="200" /></label><label for="accountPasswordConfirm">Conferma nuova password<input id="accountPasswordConfirm" type="password" autocomplete="new-password" required maxlength="200" /></label><p class="field-help">Compila anche la conferma dell’identità. Dopo la modifica dovrai accedere nuovamente su tutti i browser.</p><button id="changePasswordButton" class="primary" type="submit">Aggiorna password</button><p id="passwordChangeStatus" class="notice error" role="status"></p></form></section></div>
+        <section class="panel login-sessions"><div class="panel-heading"><div><h2>Accessi attivi</h2><p>I browser con accesso al tuo account. Puoi disconnettere quelli che non usi più.</p></div><button id="refreshLogins" aria-label="Aggiorna accessi"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div><div id="loginSessions"></div><p id="loginSessionsStatus" role="status" class="notice error"></p></section>
+      </section>
+      <section data-page="help" hidden>
+        <div class="page-heading"><div><div class="eyebrow">TI ACCOMPAGNIAMO NOI</div><h1>Dal primo avvio alla prima sessione.</h1><p>Le informazioni essenziali per usare RemotePocket.</p></div></div>
+        <div class="help-grid"><article class="panel"><span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg></span><h2>1. Prepara Android</h2><p>Installa RemotePocket Agent. Per visualizzare lo schermo serve Android 11 o successivo. L’app funziona sui dispositivi che possiedi o sei autorizzato a gestire.</p><p>Abilita <strong>RemotePocket Remote Control</strong> nelle impostazioni di accessibilità del dispositivo e tienilo sbloccato durante l’assistenza.</p></article><article class="panel"><span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></span><h2>2. Associa il dispositivo</h2><p>Genera un codice dalla console. Nell’app Android inserisci l’indirizzo del server, il codice, un nome e una password dispositivo di almeno 8 caratteri.</p><p>Il codice è monouso e ha una scadenza. La password dispositivo è distinta da quella del tuo account.</p><button class="primary" data-pairing>Genera un codice</button></article><article class="panel"><span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-wifi"/></svg></span><h2>3. Attivalo quando serve</h2><p>Con l’attivazione su richiesta il dispositivo appare normalmente offline. Configura la ricezione SMS o l’accesso alle notifiche Telegram nell’app.</p><p>Da Dispositivi, genera il messaggio di attivazione, copialo e invialo manualmente via SMS o Telegram. La console non invia messaggi.</p></article><article class="panel"><span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-screen"/></svg></span><h2>4. Apri una sessione</h2><p>Quando il dispositivo è online, inserisci la sua password e scegli «Apri sessione». Lo schermo compare nella pagina Sessioni remote.</p><p>Tocca per interagire e usa i pulsanti Indietro, Home, App recenti o l’invio testo. Termina con «Chiudi sessione» o dall’app Android.</p></article></div>
+        <section class="panel faq"><h2>Qualcosa non torna?</h2><details><summary>Il dispositivo risulta offline</summary><p>In modalità su richiesta è normale. Invia un comando di attivazione valido oppure abilita «Mantieni connessione al server» nell’app. Verifica rete, permessi e restrizioni della batteria.</p></details><details><summary>Non vedo lo schermo o i comandi non rispondono</summary><p>Controlla che il dispositivo sia sbloccato e che l’accessibilità sia attiva. Le schermate protette da Android possono non essere catturabili. Usa Android 11 o successivo.</p></details><details><summary>Non ricevo l’email di recupero</summary><p>Il servizio deve essere configurato per inviare email e l’indirizzo del tuo account deve essere verificato. Controlla lo spam; se il servizio non è disponibile, contatta chi gestisce l’installazione.</p></details><details><summary>Quale indirizzo inserisco nell’app?</summary><p>Usa l’indirizzo HTTPS pubblico del server. Per una prova locale con la build debug, usa l’IP del computer sulla stessa rete o 10.0.2.2 nell’emulatore Android. «localhost» sul telefono indica il telefono stesso. Apri la console su HTTPS o localhost per poter avviare sessioni.</p></details></section>
       </section>
     </main>
-
-    <section class="panel stack" id="activityPanel">
-      <h2>Attività</h2><label>Dal<input id="activityStart" type="datetime-local" /></label><label>Al<input id="activityEnd" type="datetime-local" /></label>
-      <label>Tipo evento<input id="activityType" /></label><label>ID dispositivo<input id="activityDevice" /></label>
-      <button id="activityRefresh">Aggiorna attività</button><p id="activityRefreshStatus" role="status"></p><p id="activitySummary"></p><div id="activityEvents"></div><button id="activityMore" hidden>Altri eventi</button><p id="activityError" role="status"></p>
-    </section>
-    <script src="/static/device-auth.js" defer></script>
-    <script src="/static/console.js" defer></script>
-    <script src="/static/account.js" defer></script>
-  </body>
-</html>
+    <footer class="app-footer"><span>RemotePocket</span><span>Il controllo resta nelle tue mani.</span><a href="/app/help" data-route>Hai bisogno di aiuto?</a></footer>
+  </div>
+</div>
+<dialog id="pairingDialog" aria-labelledby="pairingTitle"><div class="dialog-heading"><span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg></span><button class="icon-button" data-close-dialog="pairingDialog" aria-label="Chiudi associazione"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><div class="eyebrow">UN NUOVO COLLEGAMENTO</div><h2 id="pairingTitle">Associa un dispositivo.</h2><p>Apri RemotePocket Agent sul tuo Android e inserisci questo codice insieme all’indirizzo del server.</p><div id="pairingCode" class="pairing-code" role="status">Genera un codice per iniziare.</div><p id="pairingExpiry" class="field-help"></p><div class="row"><button id="pairingButton" class="primary">Genera codice</button><button id="copyPairing" disabled><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copia codice</button></div><div class="notice info">Scegli anche una password per il dispositivo: ti servirà a ogni sessione. Il codice è monouso.</div><p id="pairingStatus" role="status" class="notice error"></p><a href="/app/help" data-route>Come funziona l’associazione?</a></dialog>
+<dialog id="confirmDialog" aria-labelledby="confirmTitle"><span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg></span><h2 id="confirmTitle">Conferma operazione</h2><p id="confirmDescription"></p><div class="row justify-end"><button id="cancelConfirmation">Annulla</button><button id="acceptConfirmation" class="danger">Conferma</button></div></dialog>
+<div id="toast" class="toast" role="status" hidden></div>
+</body></html>
