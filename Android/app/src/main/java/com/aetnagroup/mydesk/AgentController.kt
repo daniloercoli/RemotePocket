@@ -78,6 +78,20 @@ object AgentController {
         refresh(context)
     }
 
+    fun hasConnectionRequest(): Boolean = service?.connection?.hasConnectionRequest == true
+
+    fun canConnectManually(): Boolean = (state == State.WAITING || state == State.SETUP_REQUIRED) &&
+        service?.connection?.canConnectManually() == true
+
+    fun connectManually() {
+        if (!canConnectManually()) return
+        val current = service ?: return
+        if (current.connection.connectManually()) {
+            DeviceConfigStore(current).lastWakeChannel = "app"
+            publish(state)
+        }
+    }
+
     private fun configure(context: Context, config: DeviceConfig, persistent: Boolean) {
         val attempt = "${config.deviceId}:$persistent"
         if (configurationCall != null || attemptedConfiguration == attempt) return

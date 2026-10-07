@@ -72,12 +72,12 @@ On Windows, use `.\gradlew.bat :app:installDebug`. Open **RemotePocket Agent** o
 1. In the web console, create a pairing code.
 2. In the Android app, enter the server URL, a device name, the pairing code and a device password of at least 8 characters.
 3. Pair the device, then open accessibility settings from the app and enable **RemotePocket Remote Control**.
-4. Configure SMS reception and/or Telegram notification access in the Android app. Connection is **on demand by default**. In the console, use **Attiva tramite SMS o Telegram**, copy the signed command and send it to the device. Alternatively enable **Mantieni connessione al server** for continuous availability.
+4. Connection is **on demand by default**. Open the Android app and choose **Connetti** when prompted to make the device available for support. You can also configure SMS reception and/or Telegram notification access: in the console, use **Attiva tramite SMS o Telegram**, copy the signed command and send it to the device. Alternatively enable **Mantieni connessione al server** for continuous availability.
 5. Wait for the device to appear online, then enter its device password on the card and choose **Apri sessione**.
 
 For SMS, send the copied text unchanged as an actual SMS to the device's SIM number. For Telegram, send it to the account used on that Android device; Telegram must produce a notification containing the command. The console generates the message for manual delivery. It does not send it automatically. An offline device is normal while the agent waits locally.
 
-The message expires ten minutes after generation. Valid receipt opens a ten-minute connection window; an active session keeps the connection open, followed by five minutes of availability after it ends. See the [complete activation workflow and timing example](Server/docs/wake-activation.md#everyday-workflow-from-an-offline-device-to-a-session).
+The message expires ten minutes after generation. Valid receipt or confirmation in the Android app opens a ten-minute connection window; an active session keeps the connection open, followed by five minutes of availability after it ends. The app only offers a manual connection when continuous mode is OFF, control is not paused and no connection is already open or being attempted. See the [complete activation workflow and timing example](Server/docs/wake-activation.md#everyday-workflow-from-an-offline-device-to-a-session).
 
 Use the right server URL in the app:
 

@@ -47,6 +47,23 @@ class AgentConnectionManager(private val service: MyDeskAccessibilityService) {
         return true
     }
 
+    val hasConnectionRequest: Boolean
+        get() = client != null || policy.shouldConnect(SystemClock.elapsedRealtime())
+
+    fun canConnectManually(): Boolean {
+        val store = DeviceConfigStore(service)
+        return !store.keepConnected && !store.paused && !store.invalid &&
+            store.load() != null && !hasConnectionRequest
+    }
+
+    fun connectManually(): Boolean {
+        // Recheck after consent: an SMS, a mode change or pause may have intervened.
+        if (!canConnectManually() || !policy.wake(SystemClock.elapsedRealtime())) return false
+        receipt = null // Local consent is not a signed SMS/Telegram wake receipt.
+        refresh()
+        return true
+    }
+
     fun isAllowed(): Boolean {
         val store = DeviceConfigStore(service)
         return !store.paused && !store.invalid && policy.shouldConnect(SystemClock.elapsedRealtime())

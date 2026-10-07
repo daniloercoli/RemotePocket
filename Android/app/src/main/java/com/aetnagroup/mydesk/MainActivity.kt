@@ -33,10 +33,14 @@ class MainActivity : Activity() {
     private lateinit var configurationStatus: TextView
     private lateinit var retryConfiguration: Button
     private var rendering = false
+    private var resumed = false
+    private var connectionPrompt = ManualConnectionPrompt()
+    private var connectionDialog: AlertDialog? = null
     private val listener: (AgentController.State) -> Unit = { renderState(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        connectionPrompt = lastNonConfigurationInstance as? ManualConnectionPrompt ?: ManualConnectionPrompt()
         val config = DeviceConfigStore(this).load()
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(32, 32, 32, 32) }
         fun text(resource: Int) { root.addView(TextView(this).apply { setText(resource); textSize = 18f }) }
@@ -85,8 +89,18 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { addView(root) })
     }
     override fun onStart() { super.onStart(); AgentController.observe(listener) }
-    override fun onResume() { super.onResume(); AgentController.refresh(this) }
-    override fun onStop() { AgentController.remove(listener); super.onStop() }
+    override fun onResume() { super.onResume(); resumed = true; AgentController.refresh(this) }
+    override fun onPause() {
+        resumed = false
+        dismissConnectionDialog()
+        super.onPause()
+    }
+    override fun onStop() {
+        AgentController.remove(listener)
+        if (!isChangingConfigurations) connectionPrompt.leaveApp()
+        super.onStop()
+    }
+    override fun onRetainNonConfigurationInstance(): Any = connectionPrompt
     override fun onDestroy() { pairingCall?.cancel(); pairingCall = null; super.onDestroy() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("url", backendUrl.text.toString()); outState.putString("name", deviceName.text.toString())
@@ -116,10 +130,46 @@ class MainActivity : Activity() {
         retryConfiguration.isEnabled = paired && store.configurationPending && !store.paused
         configurationStatus.setText(if (!paired) R.string.state_unpaired else if (store.configurationPending)
             R.string.state_wake_setup_required else R.string.wake_configured)
-        val channel = when (store.lastWakeChannel) { "sms" -> "SMS"; "telegram" -> "Telegram"; else -> "—" }
+        val channel = when (store.lastWakeChannel) {
+            "sms" -> "SMS"
+            "telegram" -> "Telegram"
+            "app" -> getString(R.string.activation_from_app)
+            else -> "—"
+        }
         val sms = if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED)
             getString(R.string.permission_granted) else getString(R.string.permission_missing)
         wakeStatus.text = getString(R.string.wake_status, channel, sms)
+        updateConnectionDialog(store)
+    }
+
+    private fun updateConnectionDialog(store: DeviceConfigStore) {
+        if (!resumed || isFinishing || isDestroyed) return
+        val shouldShow = connectionPrompt.shouldShow(
+            available = AgentController.canConnectManually(),
+            alreadyConnecting = store.keepConnected || AgentController.hasConnectionRequest(),
+        )
+        if (!shouldShow) { dismissConnectionDialog(); return }
+        if (connectionDialog != null) return
+        val config = store.load() ?: return
+        connectionDialog = AlertDialog.Builder(this)
+            .setTitle(R.string.connect_on_open_title)
+            .setMessage(getString(R.string.connect_on_open_message, config.backendUrl))
+            .setPositiveButton(R.string.connect_now) { _, _ ->
+                connectionPrompt.respond()
+                AgentController.connectManually()
+            }
+            .setNegativeButton(R.string.connect_later) { _, _ -> connectionPrompt.respond() }
+            .setOnCancelListener { connectionPrompt.respond() }
+            .create().also { dialog ->
+                dialog.setOnDismissListener { if (connectionDialog === dialog) connectionDialog = null }
+                dialog.show()
+            }
+    }
+
+    private fun dismissConnectionDialog() {
+        val dialog = connectionDialog
+        connectionDialog = null
+        dialog?.dismiss()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

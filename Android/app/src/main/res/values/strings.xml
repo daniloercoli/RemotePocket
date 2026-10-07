@@ -15,7 +15,12 @@ Abilita RemotePocket nelle impostazioni per consentire gesti e controllo remoto.
     <string name="operation_title">4. Stato operativo</string>
     <string name="wake_setup_title">3. Collegamento al server</string>
     <string name="keep_connected">Mantieni connessione al server</string>
-    <string name="wake_guide">OFF: resta in attesa di un comando firmato via SMS o Telegram. ON: mantiene il collegamento continuo. Dopo l’assistenza, in modalità OFF, il collegamento termina dopo 5 minuti.</string>
+    <string name="wake_guide">OFF: puoi collegarti confermando la richiesta all’apertura dell’app oppure tramite un comando firmato via SMS o Telegram. ON: mantiene il collegamento continuo. Dopo l’assistenza, in modalità OFF, il collegamento termina dopo 5 minuti.</string>
+    <string name="connect_on_open_title">Connettersi al server?</string>
+    <string name="connect_on_open_message">Il dispositivo si collegherà a %1$s per l’assistenza remota. Avrai 10 minuti per avviare una sessione; al termine dell’assistenza resterà disponibile per altri 5 minuti.</string>
+    <string name="connect_now">Connetti</string>
+    <string name="connect_later">Non ora</string>
+    <string name="activation_from_app">Conferma nell’app</string>
     <string name="sms_permission">Abilita ricezione SMS</string>
     <string name="telegram_permission">Abilita accesso notifiche Telegram</string>
     <string name="telegram_listener_name">RemotePocket — attivazione Telegram</string>
@@ -23,9 +28,9 @@ Abilita RemotePocket nelle impostazioni per consentire gesti e controllo remoto.
     <string name="battery_settings">Apri ottimizzazione batteria</string>
     <string name="battery_guide">Per il collegamento a schermo spento, escludi RemotePocket dall’ottimizzazione della batteria. Il servizio di accessibilità deve restare abilitato.</string>
     <string name="retry_wake_configuration">Riprova configurazione attivazione</string>
-    <string name="state_wake_setup_required">Configurazione attivazione da completare. Verifica rete e server, poi premi Riprova.</string>
+    <string name="state_wake_setup_required">Configurazione SMS e Telegram da completare. Verifica rete e server, poi premi Riprova. Puoi comunque collegarti confermando la richiesta all’apertura dell’app.</string>
     <string name="wake_configured">Attivazione SMS e Telegram configurata.</string>
-    <string name="state_waiting">In attesa di SMS o Telegram.</string>
+    <string name="state_waiting">In attesa di connessione dall’app, SMS o Telegram.</string>
     <string name="wake_status">Ultima attivazione: %1$s\nPermesso SMS: %2$s</string>
     <string name="permission_granted">abilitato</string>
     <string name="permission_missing">da abilitare</string>

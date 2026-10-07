@@ -1,9 +1,17 @@
-# SMS and Telegram activation
+# On-demand activation
 
 The agent's **Mantieni connessione al server** option defaults to OFF on new and
 upgraded installations. SMS and Telegram use the same authenticated command and
 availability policy. No SMS provider, Telegram bot or FCM integration is required:
 the owner copies the command from the console and sends it manually.
+
+For interactive support, the user can instead open the paired Android app and
+choose **Connetti** in **Connettersi al server?**. This opens the same temporary
+WebSocket connection without SMS/Telegram permissions or wake-key provisioning.
+The prompt is offered only with continuous mode OFF, accessibility ready, control
+not paused and no connection already open or being attempted. It uses the saved
+server URL; any VPN needed to reach it must already be connected. Session password
+authentication is still required in the console. See the [app-opening workflow](../../Android/README.md#connect-by-opening-the-app).
 
 ## Everyday workflow: from an offline device to a session
 
@@ -11,7 +19,7 @@ Complete pairing, wake-key provisioning and the Android permissions once, while
 the device has internet access. The [Android setup guide](../../Android/README.md#sms-and-telegram-activation)
 lists the local settings. At least one reception channel must be ready; both can
 be enabled together. With continuous connection OFF, the app then displays
-**In attesa di SMS o Telegram**. An offline device in the console is normal at
+**In attesa di connessione dall’app, SMS o Telegram**. An offline device in the console is normal at
 this point: the agent is waiting locally and makes no periodic server requests.
 
 1. Sign in to the console as the device owner. On the device card, choose
@@ -80,7 +88,7 @@ There are two separate ten-minute clocks:
 | Clock | Starts at | Meaning |
 | --- | --- | --- |
 | Command validity | Server generation | The device must receive and accept it before the displayed expiry. |
-| Initial connection window | First valid receipt on Android | The agent has up to ten minutes to connect and start a session, including network retries. |
+| Initial connection window | First valid receipt on Android, or local **Connetti** confirmation | The agent has up to ten minutes to connect and start a session, including network retries. |
 | Session grace period | Session end or detected connection loss during a session | The agent remains available or retries for up to five minutes. A new session cancels this deadline. |
 
 For example, a command generated at **14:00** expires at **14:10**. If accepted at
@@ -101,7 +109,8 @@ Turning **Mantieni connessione al server** ON makes the agent connect and reconn
 continuously, so no wake message is needed. Turning it OFF disconnects immediately
 when no session is active, or preserves the active session and its five-minute
 grace period. Local pause closes everything and ignores incoming wake messages.
-Resuming restores waiting in OFF mode; send a fresh command to activate it.
+Resuming restores waiting in OFF mode; confirm the app-opening prompt or send a
+fresh command to activate it.
 A reboot also returns OFF mode to waiting, without restoring a previous window.
 
 Activation does not unlock the screen, enable a disabled service or bypass the
@@ -192,7 +201,7 @@ changes; manual retry is available. There is no polling to retrieve wake command
 ## Connection lifetime
 
 In on-demand mode there is no socket, heartbeat, retry task or wake lock while
-waiting. Reception opens a 10-minute budget (monotonic time), including connection
+waiting. Reception or local confirmation opens a 10-minute budget (monotonic time), including connection
 attempts. Starting a session removes the deadline. Ending or losing a session opens
 a 5-minute grace budget; subsequent transport failures do not reset it. A new
 session removes the grace deadline. Additional valid messages are consumed but do
@@ -217,6 +226,13 @@ substitute for the following hardware tests; record device/OEM, Android version,
 APK installation method, SMS operator and Telegram version for each run.
 
 - Check fresh installation and upgrade without losing pairing; OFF is the default.
+- With OFF and an idle paired agent, open the app and decline the connection:
+  no WebSocket is opened. Rotate the screen: no repeated offer. Leave and reopen,
+  then confirm: one connection opens without SMS/Telegram permissions. Check the
+  10-minute idle deadline and 5-minute post-session grace. Rotate with the dialog
+  unanswered: it remains available. Existing connections, reconnects, continuous
+  mode and local pause must suppress the offer. Send a valid SMS with the dialog
+  open: it closes and only the SMS connection window is used.
 - Grant SMS with the intended enterprise installer, and notification/accessibility
   permissions on a sideloaded APK, including restricted-settings requirements.
 - For **each** channel: background the app, turn the screen off, force Doze, send a
