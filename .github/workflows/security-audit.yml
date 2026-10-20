@@ -75,7 +75,7 @@ jobs:
         run: python -m pip install --upgrade 'pip>=26.2' 'pip-audit>=2.10' 'bandit>=1.9'
       - name: Audit source and locked runtime dependencies
         run: Server/scripts/security-check.sh
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: security-reports
