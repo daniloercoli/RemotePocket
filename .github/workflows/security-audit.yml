@@ -40,7 +40,7 @@ jobs:
       MYDESK_TEST_REDIS_URL: redis://localhost:6379/0
       MYDESK_TEST_POSTGRES_URL: ${{ matrix.database == 'postgres' && 'postgresql+psycopg2://mydesk:mydesk-test-only@localhost:5432/mydesk_test' || '' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -67,7 +67,7 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -85,7 +85,7 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Scan history and working tree without online credential verification
@@ -96,14 +96,14 @@ jobs:
     container:
       image: semgrep/semgrep:1.136.0
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Scan Python, JavaScript and Kotlin
         run: semgrep scan --config p/python --config p/javascript --config p/kotlin --error --metrics=off --exclude 'Server/tests' --exclude 'Android/app/src/test' .
 
   android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -120,7 +120,7 @@ jobs:
   production-stack:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install backup encryption tools
         run: sudo apt-get update && sudo apt-get install -y age
       - name: Build and verify HTTPS stack
@@ -129,7 +129,7 @@ jobs:
   monitoring:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Validate monitoring configuration and error-rate alert
         run: |
           monitoring_token_file="$(mktemp)"
